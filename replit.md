@@ -54,6 +54,10 @@ The private HWD Farm family website for Roster-approved sign-in, secure document
 
 ## Architecture and security decisions
 
+- **Proxy depth:** Express uses `trust proxy = 3`, counting from the socket/right-hand end, never `true` or the leftmost forwarded value. A development ingress audit on 2026-10-28 observed `visitor, ingress proxy, loopback router` in X-Forwarded-For with a loopback socket; depth 1 incorrectly selected loopback. The chain was stable across ordinary requests and requests supplying one/multiple spoofed XFF entries, which Replit stripped upstream. Depth 3 selects the edge-presented visitor and ignores any extra client-supplied prefix. This assumes requests arrive through that audited ingress, not a shorter alternate path; re-audit after routing changes. Production forwarding depth has not been instrumented and must be verified after Peter republishes.
+- Auth rate limits remain PostgreSQL-backed. Throttled link requests log the IP/email throttle flags (no email or token), while returning the same neutral body. Oversized JSON returns 413 with a plain size-limit message.
+- Admin-editable Farm app URLs must use HTTPS and host `hwdfarm.com` or a subdomain; credentials and suffix/lookalike hosts are refused with a clear validation message.
+
 - Roster is authoritative; the site stores no independent member directory. Sign-in tokens and session cookies are random bearer secrets whose database representation is SHA-256 hashed.
 - Email is neutral for allowed and refused addresses. Development sign-in links go only to server logs; production delivery uses the connected Resend integration. The continue page checks the token without consuming it; only the Continue action attempts the atomic single-use consume.
 - All API routes require a valid session except the explicit anonymous list below. Roles are checked on the server for every protected operation.

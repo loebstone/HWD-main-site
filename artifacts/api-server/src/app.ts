@@ -14,15 +14,16 @@ import { announcementRoutes } from "./routes/announcements";
 import { auditRoutes } from "./routes/audit";
 import { oldSiteImportRoutes } from "./routes/old-site-import";
 import { adminSettingsRoutes, appLinkRoutes, publicHomeNoticeRoutes } from "./routes/settings";
-import { csrf, requireSession } from "./middlewares/security";
+import { csrf, requireSession, TRUSTED_PROXY_HOPS } from "./middlewares/security";
 import { publicDocument } from "./lib/documents";
 import { getAppLinks, getHomeNotice, listAnnouncements } from "./lib/site-content";
 
 export function createApp(services: Partial<Services> = {}): Express {
   const s = { ...defaultServices, ...services };
   const app = express();
-  // Replit terminates TLS at its reverse proxy. Trust only the immediate proxy, not arbitrary XFF chains.
-  app.set("trust proxy", 1);
+  // Audited Replit ingress: socket -> local router -> ingress proxy -> visitor.
+  // Count from the right; never trust client-supplied entries to the left.
+  app.set("trust proxy", TRUSTED_PROXY_HOPS);
   app.disable("x-powered-by");
   app.use(helmet({ contentSecurityPolicy: { directives: {
     defaultSrc: ["'none'"], frameAncestors: ["'self'"], baseUri: ["'none'"], formAction: ["'self'"],
@@ -62,11 +63,13 @@ export function createApp(services: Partial<Services> = {}): Express {
   const errorHandler: ErrorRequestHandler = (error, req, res, _next) => {
     if (res.headersSent) { res.destroy(); return; }
     const message = error instanceof Error ? error.message : "";
-    const status = error?.code === "LIMIT_FILE_SIZE" ? 413
+    const jsonTooLarge = error?.type === "entity.too.large";
+    const status = jsonTooLarge || error?.code === "LIMIT_FILE_SIZE" ? 413
       : error instanceof ZodError || error instanceof SyntaxError || error?.type === "entity.parse.failed" ||
         error?.name === "MulterError" || /Year is required|Invalid |is required|Use replace|last administrator/.test(message) ? 400 : 503;
     req.log.warn({ errorType: error?.name ?? "Error" }, message.includes("is unset") ? message : "Request refused");
-    res.status(status).json({ error: status === 413 ? "PDF must be no larger than 50 MB"
+    res.status(status).json({ error: jsonTooLarge ? "Request too large. JSON bodies must be no larger than 64 KB."
+      : status === 413 ? "PDF must be no larger than 50 MB"
       : status === 400 ? "Invalid request. Check the supplied fields." : "This feature is temporarily unavailable." });
   };
   app.use(errorHandler);

@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { createServer } from "node:http";
-import { randomUUID } from "node:crypto";
+import { createHmac, randomUUID } from "node:crypto";
 import { Readable } from "node:stream";
 import { mkdir } from "node:fs/promises";
 import pg from "pg";
@@ -19,6 +19,7 @@ import { appOrigin, DAY, neutralMessage } from "../src/lib/config";
 import { logger } from "../src/lib/logger";
 import { fetchGoogle, fetchOldSitePdf, googleConfirmLink, OLD_SITE_INDEX, parseOldSiteCsv, PDF_LIMIT } from "../src/lib/old-site-fetch";
 import { planOldSiteRow } from "../src/lib/old-site-import";
+import { appLinkSchema, APP_LINK_URL_MESSAGE } from "../src/lib/site-content";
 import type { Services } from "../src/lib/services";
 
 // Tests use one dedicated schema on the development DB, synthetic *.invalid identities,
@@ -462,6 +463,45 @@ test("HWD foundation: isolated development security suite", async (t) => {
       await request(app).post(`/api/admin/grants/${created.body.id}/end`).set("Cookie", adminCookie).expect(200);
       await request(app).get("/api/auth/session").set("Cookie", signed.cookie).expect(res => assert.equal(res.body.role, "member"));
       const [historical] = await testDb.select().from(grants).where(eq(grants.id, created.body.id)); assert(historical!.endedAt);
+    });
+    await t.test("multi-hop proxy chain keys the DB limiter on the real visitor, ignoring spoofed prefixes", async () => {
+      assert.equal(app.get("trust proxy"), 3);
+      const visitor = "203.0.113.208";
+      const chain = (spoof: string) => `${spoof}, ${visitor}, 10.48.40.210, 127.0.0.1`;
+      for (let n = 0; n < 12; n++) {
+        await request(app).get("/api/auth/verify")
+          .set("X-Forwarded-For", chain(`198.51.100.${n + 1}`)).expect(n < 10 ? 200 : 429);
+      }
+      for (let n = 0; n < 12; n++) {
+        await request(app).get("/api/auth/verify")
+          .set("X-Forwarded-For", chain(`192.0.2.${n + 1}`)).expect(429);
+      }
+      const key = "verify-ip:" + createHmac("sha256", process.env.SESSION_SECRET!).update(visitor).digest("hex");
+      const result = await testDb.execute(sql`SELECT hits FROM site_rate_limits WHERE key=${key}`);
+      assert.equal(result.rows[0]?.hits, 24);
+      await request(app).get("/api/auth/verify")
+        .set("X-Forwarded-For", "198.51.100.1, 203.0.113.209, 10.48.40.210, 127.0.0.1").expect(200);
+    });
+    await t.test("oversized JSON is a plain 413, not a 503 or a PDF-specific error", async () => {
+      const response = await request(app).post("/api/auth/link")
+        .send({ email: "nobody@example.invalid", padding: "x".repeat(100 * 1024) }).expect(413);
+      assert.deepEqual(response.body, { error: "Request too large. JSON bodies must be no larger than 64 KB." });
+    });
+    await t.test("Farm app links allow only HTTPS Farm hosts with a clear server validation message", async () => {
+      for (const url of ["https://hwdfarm.com", "https://calendar.hwdfarm.com/path?x=1",
+        "https://nested.apps.hwdfarm.com", "https://ROSTER.HWDFARM.COM"]) {
+        assert(appLinkSchema.safeParse({ id: "calendar", label: "Calendar", url }).success, url);
+      }
+      const current = await request(app).get("/api/admin/apps").set("Cookie", adminCookie).expect(200);
+      for (const url of ["http://calendar.hwdfarm.com", "https://evil.example", "https://nothwdfarm.com",
+        "https://hwdfarm.com.evil.example", "https://hwdfarm.com@evil.example", "https://user@calendar.hwdfarm.com"]) {
+        assert(!appLinkSchema.safeParse({ id: "calendar", label: "Calendar", url }).success, url);
+        const apps = current.body.map((item: { id: string }) => item.id === "calendar" ? { ...item, url } : item);
+        const response = await request(app).put("/api/admin/apps").set("Cookie", adminCookie).send({ apps }).expect(400);
+        assert.match(response.body.error, new RegExp(APP_LINK_URL_MESSAGE.replaceAll(".", "\\.")));
+      }
+      const unchanged = await request(app).get("/api/admin/apps").set("Cookie", adminCookie).expect(200);
+      assert.deepEqual(unchanged.body, current.body);
     });
     await t.test("rate limits use visitor IP, not cookie; email limit shared across IPs; verify limit", async () => {
       const before = captured.length;

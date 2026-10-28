@@ -4,10 +4,18 @@ import { announcements, siteSettings, type Announcement } from "@workspace/db";
 import type { Services } from "./services";
 
 export const appIds = ["calendar", "roster", "forecast", "cap-table"] as const;
+export const APP_LINK_URL_MESSAGE = "Farm app links must use HTTPS and a host of hwdfarm.com or a subdomain of hwdfarm.com";
+export function isFarmAppUrl(value: string): boolean {
+  try {
+    const url = new URL(value);
+    return url.protocol === "https:" && !url.username && !url.password &&
+      (url.hostname === "hwdfarm.com" || url.hostname.endsWith(".hwdfarm.com"));
+  } catch { return false; }
+}
 export const appLinkSchema = z.object({
   id: z.enum(appIds),
   label: z.string().trim().min(1).max(100),
-  url: z.string().url().max(2048).refine(value => new URL(value).protocol === "https:", "App links must use HTTPS"),
+  url: z.string().url().max(2048).refine(isFarmAppUrl, APP_LINK_URL_MESSAGE),
 });
 export const appLinksSchema = z.array(appLinkSchema).length(4).superRefine((apps, ctx) => {
   if (new Set(apps.map(app => app.id)).size !== 4) {

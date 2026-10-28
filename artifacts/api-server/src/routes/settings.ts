@@ -49,7 +49,11 @@ export function adminSettingsRoutes(s: Services) {
   });
   router.put("/apps", requireAdmin, async (req, res): Promise<void> => {
     const body = UpdateAppLinksBody.parse(req.body);
-    const apps = appLinksSchema.parse(body.apps);
+    const parsedApps = appLinksSchema.safeParse(body.apps);
+    if (!parsedApps.success) {
+      res.status(400).json({ error: parsedApps.error.issues.map(issue => issue.message).join("; ") }); return;
+    }
+    const apps = parsedApps.data;
     await s.db.transaction(async tx => {
       await tx.insert(siteSettings).values({ key: "apps", value: apps,
         updatedBy: req.siteIdentity!.personId, updatedAt: s.now() })

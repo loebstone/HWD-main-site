@@ -29,6 +29,8 @@ export function authRoutes(s: Services) {
       ]);
       // Neutral for allowed, denied, unreachable, malformed and throttled.
       if (ipOK && emailOK) await issueLink(s, email, appOrigin());
+      else req.log.info({ visitorAddress: visitorAddress(req), ipThrottled: !ipOK, emailThrottled: !emailOK },
+        "Sign-in link request throttled; neutral response returned");
     } catch (error) {
       const message = error instanceof Error ? error.message : "Sign-in refused";
       req.log.warn(message.includes("is unset") ? message : "Roster or email unavailable; sign-in refused");
