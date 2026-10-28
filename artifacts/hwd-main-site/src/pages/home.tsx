@@ -27,7 +27,7 @@ export default function HomePage() {
     <div className="space-y-14">
       <section className="rise">
         <p className="text-xs uppercase tracking-[0.22em] text-muted-foreground">Lee, Massachusetts</p>
-        <h1 className="mt-2 text-4xl md:text-6xl leading-[1.05]" data-testid="text-greeting">
+        <h1 className="mt-2 text-2xl sm:text-4xl md:text-5xl leading-snug break-words" data-testid="text-greeting">
           Good to see you, {me ? nameOf(me) : ""}.
         </h1>
         <figure className="mt-8 overflow-hidden rounded-2xl border shadow-lg bg-card">
@@ -42,7 +42,7 @@ export default function HomePage() {
 
       <section>
         <div className="flex items-end justify-between gap-4 mb-4">
-          <div><p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Quick access</p><h2 className="mt-1 text-3xl">Farm apps</h2></div>
+          <div><p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Quick access</p><h2 className="mt-1 text-2xl md:text-3xl leading-snug">Farm apps</h2></div>
         </div>
         {apps.isLoading ? <div className="grid sm:grid-cols-2 gap-3"><Skeleton className="h-20" /><Skeleton className="h-20" /></div> :
           apps.isError ? <ErrorState onRetry={() => apps.refetch()} /> : !apps.data?.length ?
@@ -58,7 +58,7 @@ export default function HomePage() {
 
       <section>
         <div className="flex items-end justify-between mb-4">
-          <div><p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">For this week</p><h2 className="mt-1 text-3xl">Reminders</h2></div>
+          <div><p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">For this week</p><h2 className="mt-1 text-2xl md:text-3xl leading-snug">Reminders</h2></div>
           <Link href="/announcements" className="text-sm text-primary underline underline-offset-4" data-testid="link-all-announcements">All announcements</Link>
         </div>
         {announcements.isLoading ? <ListSkeleton rows={2} /> : announcements.isError ? <ErrorState onRetry={() => announcements.refetch()} /> :
@@ -86,7 +86,7 @@ export default function HomePage() {
 
       <section>
         <div className="flex items-baseline justify-between mb-5">
-          <h2 className="text-3xl">Recently added</h2>
+          <h2 className="text-2xl md:text-3xl leading-snug">Recently added</h2>
           {home.isLoading ? <Skeleton className="h-5 w-24" /> : home.data &&
             <span className="text-muted-foreground" data-testid="text-document-count">{home.data.documentCount} documents in all</span>}
         </div>

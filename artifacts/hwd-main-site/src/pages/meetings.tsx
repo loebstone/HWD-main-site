@@ -15,7 +15,7 @@ export default function MeetingsPage() {
         {KINDS.map((k) => (
           <Link key={k.href} href={k.href} className="rise group rounded-2xl border bg-card p-7 hover:shadow-lg hover:border-primary/40 transition-all"
             data-testid={`link-${k.href.split("/").pop()}`}>
-            <span className="font-display text-3xl block">{k.title}</span>
+            <span className="font-display text-2xl md:text-3xl leading-snug block">{k.title}</span>
             <span className="mt-2 block text-muted-foreground text-lg">{k.text}</span>
             <span className="mt-6 inline-flex items-center gap-2 text-primary">Open <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" /></span>
           </Link>

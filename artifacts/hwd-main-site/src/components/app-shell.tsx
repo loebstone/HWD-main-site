@@ -81,9 +81,9 @@ export function AppShell({ children }: { children: ReactNode }) {
         {open && (
           <nav className="lg:hidden border-t bg-background px-4 py-3 flex flex-col">
             {links(true)}
-            <div className="mt-3 pt-3 border-t flex items-center justify-between">
-              <span className="text-muted-foreground">{me ? nameOf(me) : ""}</span>
-              <button onClick={handleSignOut} className="inline-flex items-center gap-1.5 rounded-md border px-3 py-2"
+            <div className="mt-3 pt-3 border-t flex flex-wrap items-center justify-between gap-3">
+              <span className="min-w-0 break-words text-muted-foreground">{me ? nameOf(me) : ""}</span>
+              <button onClick={handleSignOut} className="inline-flex shrink-0 items-center gap-1.5 rounded-md border px-3 py-2"
                 data-testid="button-sign-out-mobile">
                 <LogOut className="h-4 w-4" /> Sign out
               </button>

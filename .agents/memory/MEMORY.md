@@ -1,2 +1,3 @@
 - [Session test clocks](session-test-clocks.md) — Use an isolated clock when simulating the three-day Roster outage grace.
 - [Form selector resets](form-selector-resets.md) — Radix Select can emit an empty value during an asynchronous form reset; preserve required enum values.
+- [Phone-first family use](phone-first-family-use.md) — Most family members use phones; prioritize readable sizing and navigation at 390 pixels.

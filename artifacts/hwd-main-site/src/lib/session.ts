@@ -18,9 +18,7 @@ export function useSession() {
   });
 }
 
-export function nameOf(identity: Identity) {
-  return identity.goesBy?.trim() || identity.displayName;
-}
+export { nameOf } from "./personal-name";
 
 export function canEdit(identity: Identity | undefined) {
   return identity?.role === "editor" || identity?.role === "admin";
