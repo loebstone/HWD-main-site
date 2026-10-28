@@ -11,7 +11,7 @@ export function AuthGate({ children }: { children: ReactNode }) {
   const anonymous = status === 401;
 
   useEffect(() => {
-    if (anonymous) setLocation("/sign-in", { replace: true });
+    if (anonymous) setLocation(`/sign-in?to=${encodeURIComponent(window.location.pathname + window.location.search + window.location.hash)}`, { replace: true });
   }, [anonymous, setLocation]);
 
   if (session.isLoading || anonymous) {

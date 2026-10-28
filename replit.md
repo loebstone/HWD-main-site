@@ -1,6 +1,6 @@
 # HWD Main Site
 
-The private HWD Farm family website for Roster-approved sign-in, secure documents, announcements, and links to Farm apps.
+The private HWD Farm family website with Roster single sign-in, secure documents, announcements, and links to Farm apps.
 
 ## Run & operate
 
@@ -40,6 +40,7 @@ The private HWD Farm family website for Roster-approved sign-in, secure document
 - `artifacts/hwd-main-site/` — HWD Farm website, pages, components, visual assets, and Vite configuration.
 - `artifacts/hwd-main-site/src/pages/admin/admin-features.tsx` — admin announcements, home notice, apps, people/grants, and audit screens.
 - `artifacts/api-server/src/routes/auth.ts` and `src/lib/auth.ts` — sign-in, one-time tokens, sessions, and sign-out.
+- `artifacts/api-server/src/routes/sso.ts`, `src/lib/sso.ts`, and `src/lib/roster.ts` — Roster ticket callback, safe return paths, entry URL and server-to-server redemption.
 - `artifacts/api-server/src/routes/documents.ts` and `src/lib/documents.ts` — document metadata, upload, replace, retire, and protected open.
 - `artifacts/api-server/src/routes/announcements.ts`, `routes/settings.ts`, and `routes/audit.ts` — announcements, home notice, app links, and filtered audit history.
 - `artifacts/api-server/src/lib/site-content.ts` — announcement and settings validation, defaults, and live/past selection.
@@ -63,6 +64,11 @@ The private HWD Farm family website for Roster-approved sign-in, secure document
 - Roster is authoritative; the site stores no independent member directory. Sign-in tokens and session cookies are random bearer secrets whose database representation is SHA-256 hashed.
 - Email is neutral for allowed and refused addresses. Development sign-in links go only to server logs; production delivery uses the connected Resend integration. The continue page checks the token without consuming it; only the Continue action attempts the atomic single-use consume.
 - All API routes require a valid session except the explicit anonymous list below. Roles are checked on the server for every protected operation.
+- **Roster SSO contract:** member sign-in fetches `GET /api/auth/roster-entry?to=<path>` and navigates to `{ROSTER_BASE_URL}/sign-in?app=site&to=<encoded path>&origin=<encoded APP_ORIGIN>`. Anonymous protected-page navigation preserves its intended path/query/fragment. Paths must start with a single `/`; full URLs, `//`, backslashes, encoded separator tricks and control characters are refused. Default is `/`.
+- Roster returns the browser to `GET /auth/sso?ticket=<raw>&to=<path>` (explicitly routed to the API service, not Vite). The server POSTs `{ticket}` to `{ROSTER_BASE_URL}/api/service/sso-redeem` using `SITE_SERVICE_KEY`, a 10-second timeout and no redirects. Roster owns atomic 60-second/single-use ticket enforcement. A 401, outage, malformed answer or redirect refuses sign-in without fallback. This callback is DB-rate-limited to 20 requests per 15 minutes per visitor address.
+- **Role rule:** sessions with `sign_in_method = roster` use only the validated `role` from redemption, stored as `roster_role`; neither `rosterAdmin` nor local grants override it. `authenticated_at` records the Roster timestamp. The unchanged daily `sign-in-check` rechecks eligibility, not role. Local grants remain the sole role source for `magic-link`/legacy sessions. SSO never bootstraps or creates local grants.
+- **Admin back door:** the old email form lives only at `/admin/sign-in`, unlinked from site navigation; local active admins (or the eligible never-before-granted bootstrap admin) can complete it. Member tokens cannot create back-door sessions. Existing neutral responses, atomic token consume, console-only development email, Roster eligibility recheck, rate limits and cookie protections remain. It does not bypass Roster eligibility/network checks: if the Roster service itself is unreachable, new back-door sign-ins still fail closed.
+- Both methods use the same session table/cookie, 30-day sliding window, 12-month maximum and daily eligibility checks. Existing rows default to `magic-link`; their historical authentication timestamp may be NULL. Site sign-out deletes only the site session, then offers a separate link to `{ROSTER_BASE_URL}/sign-out` labeled “Sign out of all Farm apps”.
 - Document downloads are authenticated streams with `Cache-Control: no-store`; private object keys never reach the client. PDF uploads are signature-checked and capped at 50 MB.
 - Documents, grants, and announcements are retired/ended, not deleted. Sign-out is the requested exception and removes that session row.
 - Audit rows are protected by database triggers against UPDATE, DELETE, and TRUNCATE, and public mutation grants are revoked. On API startup, the application idempotently creates missing functions/triggers in every environment; it never drops/recreates them or changes existing rows. `lib/db/security.sql` is the readable source at the repository root. The API build copies that source to `artifacts/api-server/dist/security.sql`; the bundled startup installer reads the adjacent copy, so deployment does not depend on retaining the source tree. Source-mode tests fall back to the readable source. `security:dev` is a local development-only installer.
@@ -83,9 +89,12 @@ The private HWD Farm family website for Roster-approved sign-in, secure document
 - `GET /api/healthz` — liveness and non-secret API build identifier only; exposes no identity or document data.
 - `GET /api/public/home-notice` — returns only the notice text when its visibility is public; returns no content when the notice is signed-in only.
 - `GET /api/auth/verify` — non-consuming continue-page preflight; token consumption is only by POST.
-- `POST /api/auth/link` — generic magic-link request; same visible response for allowed, denied, and unavailable Roster.
-- `POST /api/auth/verify` — single-use token verification and session creation.
-- Public pages: `/sign-in` and `/auth/continue` only. All other API requests require a session; signed-in pages redirect to sign-in when anonymous.
+- `GET /api/auth/roster-entry` — returns only the configured Roster entry URL, with a validated local path and the site's own origin.
+- `GET /api/auth/roster-sign-out` — returns only the configured Roster sign-out URL for the post-sign-out offer; no identity or private content.
+- `GET /auth/sso` — exchanges a Roster single-use ticket for the normal site session; rate-limited, validates the redirect destination, never serves private content anonymously.
+- `POST /api/auth/link` — admin back-door magic-link request; same visible response for allowed, denied, and unavailable Roster.
+- `POST /api/auth/verify` — atomic single-use back-door token verification; requires a local admin grant (including eligible bootstrap).
+- Public pages: `/sign-in`, `/admin/sign-in` (unlinked), and `/auth/continue`. All other API requests require a session; signed-in pages redirect to sign-in remembering the intended path.
 
 ## Product scope in this foundation
 

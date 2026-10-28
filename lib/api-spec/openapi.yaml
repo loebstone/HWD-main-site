@@ -6,6 +6,39 @@ info:
 servers:
   - url: /api
 paths:
+  /auth/roster-entry:
+    get:
+      operationId: getRosterEntry
+      parameters:
+        - { name: to, in: query, schema: { type: string } }
+      responses:
+        "200":
+          description: Validated Roster entry URL with site origin and return path
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AuthUrl" }
+        "400": { description: Invalid path or missing configuration }
+  /auth/roster-sign-out:
+    get:
+      operationId: getRosterSignOut
+      responses:
+        "200":
+          description: Roster sign-out URL offered after ending the local session
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AuthUrl" }
+  /auth/sso:
+    servers: [{ url: / }]
+    get:
+      operationId: redeemSso
+      parameters:
+        - { name: ticket, in: query, required: true, schema: { type: string } }
+        - { name: to, in: query, schema: { type: string } }
+      responses:
+        "303": { description: Session cookie set; redirect to validated local path }
+        "400": { description: Invalid local return path }
+        "401": { description: Ticket refused or Roster unavailable; plain refusal page }
+        "429": { description: Too many attempts; refusal page }
   /healthz:
     get:
       operationId: healthCheck
@@ -361,6 +394,11 @@ paths:
           description: A run is already in progress
 components:
   schemas:
+    AuthUrl:
+      type: object
+      required: [url]
+      properties:
+        url: { type: string }
     OldSiteImportInput:
       type: object
       required: [dryRun]

@@ -10,6 +10,31 @@ const rosterResponse = z.discriminatedUnion("allowed", [
 export type RosterAnswer = z.infer<typeof rosterResponse>;
 export class RosterUnavailableError extends Error {}
 export class RosterUnexpectedResponseError extends Error {}
+const redeemedIdentity = z.object({
+  personId: z.union([z.string().min(1), z.number().int()]).transform(String),
+  displayName: z.string().min(1), goes_by: z.string().nullable(),
+  email: z.string().email(), rosterAdmin: z.boolean(),
+  role: z.enum(["member", "editor", "admin"]),
+  authenticated_at: z.string().datetime({ offset: true }),
+});
+export type RedeemedIdentity = z.infer<typeof redeemedIdentity>;
+export async function redeemRosterTicket(ticket: string): Promise<RedeemedIdentity | null> {
+  const base = required("ROSTER_BASE_URL");
+  const key = required("SITE_SERVICE_KEY");
+  const url = new URL(`${base.replace(/\/$/, "")}/api/service/sso-redeem`);
+  if (!["http:", "https:"].includes(url.protocol) ||
+      (process.env.NODE_ENV === "production" && url.protocol !== "https:")) {
+    throw new Error("ROSTER_BASE_URL is invalid; sign-in refused");
+  }
+  const response = await fetch(url, {
+    method: "POST", redirect: "manual", signal: AbortSignal.timeout(10_000),
+    headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ ticket }),
+  });
+  if (response.status === 401) return null;
+  if (response.status !== 200) throw new RosterUnexpectedResponseError("Roster ticket redemption refused");
+  return redeemedIdentity.parse(await response.json());
+}
 export async function checkRoster(email: string, timeoutMs = 10_000): Promise<RosterAnswer> {
   const base = required("ROSTER_BASE_URL");
   const key = required("SITE_SERVICE_KEY");

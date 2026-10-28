@@ -8,6 +8,7 @@ import { documents } from "@workspace/db";
 import { logger } from "./lib/logger";
 import { defaultServices, type Services } from "./lib/services";
 import { authRoutes } from "./routes/auth";
+import { ssoRoutes, ssoEntryRoutes } from "./routes/sso";
 import { documentRoutes } from "./routes/documents";
 import { grantRoutes } from "./routes/grants";
 import { announcementRoutes } from "./routes/announcements";
@@ -38,6 +39,8 @@ export function createApp(services: Partial<Services> = {}): Express {
   app.use(express.json({ limit: "64kb" }));
   app.use(csrf());
   app.get("/api/healthz", (_req, res) => { res.json({ status: "ok", build: BUILD_ID }); });
+  app.use("/auth", ssoRoutes(s));
+  app.use("/api/auth", ssoEntryRoutes());
   app.use("/api/auth", authRoutes(s));
   app.use("/api/public/home-notice", publicHomeNoticeRoutes(s));
   // All remaining API routes fail closed before route lookup or file access.

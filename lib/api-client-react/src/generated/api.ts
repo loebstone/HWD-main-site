@@ -30,10 +30,12 @@ import type {
   AppLink,
   AppLinksInput,
   AuditPage,
+  AuthUrl,
   Document,
   DocumentInput,
   EmailInput,
   FileInput,
+  GetRosterEntryParams,
   Grant,
   GrantInput,
   HealthStatus,
@@ -48,6 +50,7 @@ import type {
   OldSiteImportInput,
   OldSiteImportRun,
   PublicNotice,
+  RedeemSsoParams,
   TokenInput
 } from './api.schemas';
 
@@ -77,6 +80,305 @@ const withQueryKey = <T extends object, K>(query: T, queryKey: K): T & { queryKe
   }
   return result;
 };
+
+export const getGetRosterEntryUrl = (params?: GetRosterEntryParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/auth/roster-entry?${stringifiedParams}` : `/api/auth/roster-entry`
+}
+
+export const getRosterEntry = async (params?: GetRosterEntryParams, options?: Parameters<typeof customFetch>[1]): Promise<AuthUrl> => {
+
+  return customFetch<AuthUrl>(getGetRosterEntryUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetRosterEntryQueryKey = (params?: GetRosterEntryParams,) => {
+    return [
+    `/api/auth/roster-entry`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetRosterEntryQueryOptions = <TData = Awaited<ReturnType<typeof getRosterEntry>>, TError = ErrorType<void>>(params?: GetRosterEntryParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getRosterEntry>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetRosterEntryQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getRosterEntry>>> = ({ signal }) => getRosterEntry(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getRosterEntry>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetRosterEntryQueryResult = NonNullable<Awaited<ReturnType<typeof getRosterEntry>>>
+export type GetRosterEntryQueryError = ErrorType<void>
+
+
+export function useGetRosterEntry<TData = Awaited<ReturnType<typeof getRosterEntry>>, TError = ErrorType<void>>(
+ params: undefined |  GetRosterEntryParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getRosterEntry>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getRosterEntry>>,
+          TError,
+          Awaited<ReturnType<typeof getRosterEntry>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetRosterEntry<TData = Awaited<ReturnType<typeof getRosterEntry>>, TError = ErrorType<void>>(
+ params?: GetRosterEntryParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getRosterEntry>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getRosterEntry>>,
+          TError,
+          Awaited<ReturnType<typeof getRosterEntry>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetRosterEntry<TData = Awaited<ReturnType<typeof getRosterEntry>>, TError = ErrorType<void>>(
+ params?: GetRosterEntryParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getRosterEntry>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useGetRosterEntry<TData = Awaited<ReturnType<typeof getRosterEntry>>, TError = ErrorType<void>>(
+ params?: GetRosterEntryParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getRosterEntry>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetRosterEntryQueryOptions(params,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetRosterSignOutUrl = () => {
+
+
+
+
+  return `/api/auth/roster-sign-out`
+}
+
+export const getRosterSignOut = async ( options?: Parameters<typeof customFetch>[1]): Promise<AuthUrl> => {
+
+  return customFetch<AuthUrl>(getGetRosterSignOutUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetRosterSignOutQueryKey = () => {
+    return [
+    `/api/auth/roster-sign-out`
+    ] as const;
+    }
+
+
+export const getGetRosterSignOutQueryOptions = <TData = Awaited<ReturnType<typeof getRosterSignOut>>, TError = ErrorType<unknown>>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getRosterSignOut>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetRosterSignOutQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getRosterSignOut>>> = ({ signal }) => getRosterSignOut({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getRosterSignOut>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetRosterSignOutQueryResult = NonNullable<Awaited<ReturnType<typeof getRosterSignOut>>>
+export type GetRosterSignOutQueryError = ErrorType<unknown>
+
+
+export function useGetRosterSignOut<TData = Awaited<ReturnType<typeof getRosterSignOut>>, TError = ErrorType<unknown>>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getRosterSignOut>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getRosterSignOut>>,
+          TError,
+          Awaited<ReturnType<typeof getRosterSignOut>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetRosterSignOut<TData = Awaited<ReturnType<typeof getRosterSignOut>>, TError = ErrorType<unknown>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getRosterSignOut>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getRosterSignOut>>,
+          TError,
+          Awaited<ReturnType<typeof getRosterSignOut>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetRosterSignOut<TData = Awaited<ReturnType<typeof getRosterSignOut>>, TError = ErrorType<unknown>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getRosterSignOut>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useGetRosterSignOut<TData = Awaited<ReturnType<typeof getRosterSignOut>>, TError = ErrorType<unknown>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getRosterSignOut>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetRosterSignOutQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getRedeemSsoUrl = (params: RedeemSsoParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/auth/sso?${stringifiedParams}` : `/api/auth/sso`
+}
+
+export const redeemSso = async (params: RedeemSsoParams, options?: Parameters<typeof customFetch>[1]): Promise<unknown> => {
+
+  return customFetch<unknown>(getRedeemSsoUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getRedeemSsoQueryKey = (params?: RedeemSsoParams,) => {
+    return [
+    `/api/auth/sso`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getRedeemSsoQueryOptions = <TData = Awaited<ReturnType<typeof redeemSso>>, TError = ErrorType<void>>(params: RedeemSsoParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof redeemSso>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getRedeemSsoQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof redeemSso>>> = ({ signal }) => redeemSso(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof redeemSso>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type RedeemSsoQueryResult = NonNullable<Awaited<ReturnType<typeof redeemSso>>>
+export type RedeemSsoQueryError = ErrorType<void>
+
+
+export function useRedeemSso<TData = Awaited<ReturnType<typeof redeemSso>>, TError = ErrorType<void>>(
+ params: RedeemSsoParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof redeemSso>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof redeemSso>>,
+          TError,
+          Awaited<ReturnType<typeof redeemSso>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useRedeemSso<TData = Awaited<ReturnType<typeof redeemSso>>, TError = ErrorType<void>>(
+ params: RedeemSsoParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof redeemSso>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof redeemSso>>,
+          TError,
+          Awaited<ReturnType<typeof redeemSso>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useRedeemSso<TData = Awaited<ReturnType<typeof redeemSso>>, TError = ErrorType<void>>(
+ params: RedeemSsoParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof redeemSso>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useRedeemSso<TData = Awaited<ReturnType<typeof redeemSso>>, TError = ErrorType<void>>(
+ params: RedeemSsoParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof redeemSso>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getRedeemSsoQueryOptions(params,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
 
 export const getHealthCheckUrl = () => {
 

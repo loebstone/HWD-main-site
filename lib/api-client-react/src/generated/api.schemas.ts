@@ -5,6 +5,10 @@
  * HWD Main Site private family API
  * OpenAPI spec version: 1.0.0
  */
+export interface AuthUrl {
+  url: string;
+}
+
 export interface OldSiteImportInput {
   dryRun: boolean;
 }
@@ -370,6 +374,15 @@ export interface AuditPage {
   pageSize: number;
   total: number;
 }
+
+export type GetRosterEntryParams = {
+to?: string;
+};
+
+export type RedeemSsoParams = {
+ticket: string;
+to?: string;
+};
 
 export type ListDocumentsParams = {
 section?: Section;

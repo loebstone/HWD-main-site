@@ -8,6 +8,28 @@
 import * as zod from 'zod';
 
 
+export const GetRosterEntryQueryParams = zod.object({
+  "to": zod.coerce.string().optional()
+})
+
+export const GetRosterEntryResponse = zod.object({
+  "url": zod.string()
+})
+
+
+export const GetRosterSignOutResponse = zod.object({
+  "url": zod.string()
+})
+
+
+export const RedeemSsoQueryParams = zod.object({
+  "ticket": zod.coerce.string(),
+  "to": zod.coerce.string().optional()
+})
+
+export const RedeemSsoResponse = zod.void()
+
+
 export const HealthCheckResponse = zod.object({
   "status": zod.string(),
   "build": zod.string().describe('API bundle build identifier (UTC timestamp plus random suffix); source-unbundled in source-mode tests')

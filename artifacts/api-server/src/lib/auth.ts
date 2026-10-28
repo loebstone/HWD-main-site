@@ -5,7 +5,7 @@ import { DAY, required } from "./config";
 import { audit } from "./audit";
 import type { Services } from "./services";
 import { logger } from "./logger";
-import { RosterUnavailableError } from "./roster";
+import { RosterUnavailableError, type RedeemedIdentity } from "./roster";
 
 const HOUR = 60 * 60_000;
 const ROSTER_OUTAGE_GRACE = 3 * DAY;
@@ -28,6 +28,10 @@ export async function issueLink(s: Services, email: string, origin: string): Pro
 }
 
 export async function identity(s: Services, session: SiteSession): Promise<SiteIdentity> {
+  if (session.signInMethod === "roster") {
+    if (!session.rosterRole) throw new Refusal("Invalid Roster session");
+    return { personId: session.personId, displayName: session.displayName, goesBy: session.goesBy, role: session.rosterRole };
+  }
   const [grant] = await s.db.select().from(grants).where(and(eq(grants.personId, session.personId), isNull(grants.endedAt)));
   return { personId: session.personId, displayName: session.displayName, goesBy: session.goesBy, role: grant?.role ?? "member" };
 }
@@ -40,26 +44,42 @@ export async function verify(s: Services, token: string, address: string) {
   if (!login) throw new Refusal("This sign-in link is invalid or expired. Request a new link.");
   const answer = await s.roster(login.email);
   if (!answer.allowed || answer.personId !== login.personId) throw new Refusal("This sign-in link is no longer valid. Request a new link.");
+  return createSession(s, { ...answer, email: login.email }, address);
+}
+
+export async function createSession(s: Services,
+  answer: { personId: string; displayName: string; goes_by: string | null; email: string },
+  address: string, roster?: RedeemedIdentity) {
+  required("SESSION_SECRET");
+  const now = s.now();
   const raw = newToken();
   const actor = { personId: answer.personId, displayName: answer.displayName };
   const row = await s.db.transaction(async (tx) => {
-    // Serializes the never-had-a-grant test against bootstrap AND admin grants.
-    await tx.execute(sql`SELECT pg_advisory_xact_lock(74201901)`);
-    const [ever] = await tx.select({ id: grants.id }).from(grants).limit(1);
-    if (!ever) {
-      // Feature-specific refusal: a member session can still exist when bootstrap is unconfigured.
-      const bootstrap = process.env.BOOTSTRAP_PERSON_ID?.trim();
-      if (bootstrap && bootstrap === answer.personId) {
-        const [grant] = await tx.insert(grants).values({ personId: answer.personId, role: "admin",
-          displayName: answer.displayName, grantedBy: answer.personId }).returning();
-        await audit(tx, actor, "grant-create", grant!.id, "Initial administrator grant", address);
+    if (!roster) {
+      // Serializes the never-had-a-grant test against bootstrap AND admin grants.
+      await tx.execute(sql`SELECT pg_advisory_xact_lock(74201901)`);
+      const [ever] = await tx.select({ id: grants.id }).from(grants).limit(1);
+      if (!ever) {
+        // Only the never-before-granted bootstrap administrator may use this exception.
+        const bootstrap = process.env.BOOTSTRAP_PERSON_ID?.trim();
+        if (bootstrap && bootstrap === answer.personId) {
+          const [grant] = await tx.insert(grants).values({ personId: answer.personId, role: "admin",
+            displayName: answer.displayName, grantedBy: answer.personId }).returning();
+          await audit(tx, actor, "grant-create", grant!.id, "Initial administrator grant", address);
+        }
       }
+      const [admin] = await tx.select().from(grants).where(and(
+        eq(grants.personId, answer.personId), eq(grants.role, "admin"), isNull(grants.endedAt)));
+      if (!admin) throw new Refusal("Administrator access is required for this sign-in.");
     }
     const [session] = await tx.insert(sessions).values({ hash: hashToken(raw), ...actor,
-      goesBy: answer.goes_by, email: login.email, createdAt: now,
+      goesBy: answer.goes_by, email: normaliseEmail(answer.email), createdAt: now,
+      signInMethod: roster ? "roster" : "magic-link",
+      authenticatedAt: roster ? new Date(roster.authenticated_at) : now,
+      rosterRole: roster?.role ?? null,
       expiresAt: new Date(now.getTime() + 30 * DAY), lastRenewedAt: now,
       lastRosterCheckAt: now, lastRosterSuccessAt: now }).returning();
-    await audit(tx, actor, "sign-in", null, "Signed in using a single-use link", address);
+    await audit(tx, actor, "sign-in", null, roster ? "Signed in via Roster" : "Signed in using a single-use link", address);
     return session!;
   });
   return { raw, session: row, identity: await identity(s, row) };

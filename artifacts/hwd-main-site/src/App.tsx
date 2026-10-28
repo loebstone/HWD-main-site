@@ -9,6 +9,7 @@ import { AuthGate } from "@/components/auth-gate";
 import { AppShell } from "@/components/app-shell";
 import { AdminGuard, AdminOnlyGuard } from "@/components/admin/admin-guard";
 import SignInPage from "@/pages/sign-in";
+import AdminSignInPage from "@/pages/admin-sign-in";
 import AuthContinuePage from "@/pages/auth-continue";
 import HomePage from "@/pages/home";
 import MeetingsPage from "@/pages/meetings";
@@ -62,6 +63,7 @@ function Router() {
   return (
     <Switch>
       <Route path="/sign-in" component={SignInPage} />
+      <Route path="/admin/sign-in" component={AdminSignInPage} />
       <Route path="/auth/continue" component={AuthContinuePage} />
       <Route component={PrivateRoutes} />
     </Switch>

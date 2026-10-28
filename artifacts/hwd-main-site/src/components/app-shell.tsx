@@ -29,9 +29,9 @@ export function AppShell({ children }: { children: ReactNode }) {
   const isActive = (href: string) => (href === "/" ? location === "/" : location.startsWith(href));
 
   async function handleSignOut() {
-    try { await signOut.mutateAsync(); } catch { /* clear locally regardless */ }
+    try { await signOut.mutateAsync(); } catch { return; }
     qc.clear();
-    setLocation("/sign-in");
+    setLocation("/sign-in?signedOut=1");
   }
 
   const links = (mobile: boolean) =>

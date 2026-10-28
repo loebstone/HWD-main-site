@@ -11,7 +11,7 @@ import { and, eq, sql } from "drizzle-orm";
 import { pool, loginTokens, sessions, grants, documents, auditLog, announcements } from "@workspace/db";
 import * as schema from "@workspace/db/schema";
 import { createApp } from "../src/app";
-import { checkRoster, RosterUnavailableError } from "../src/lib/roster";
+import { checkRoster, redeemRosterTicket, RosterUnavailableError, type RedeemedIdentity } from "../src/lib/roster";
 import { installDatabaseProtections } from "../src/install-security";
 import { sendSignInLink } from "../src/lib/email";
 import { hashToken, newToken } from "../src/lib/auth";
@@ -22,6 +22,7 @@ import { planOldSiteRow } from "../src/lib/old-site-import";
 import { appLinkSchema, APP_LINK_URL_MESSAGE } from "../src/lib/site-content";
 import { BUILD_ID } from "../src/lib/build-identity";
 import { resolveProxyTrust } from "../src/lib/proxy-trust";
+import { returnPath, rosterEntry } from "../src/lib/sso";
 import type { Services } from "../src/lib/services";
 
 test("proxy startup setting accepts only integer depths 0–8 with explained defaults", () => {
@@ -73,7 +74,22 @@ test("HWD foundation: isolated development security suite", async (t) => {
   const files = new Map<string, Buffer>();
   let mode: "allow" | "deny" | "bad" | "redirect" = "allow";
   let rosterCalls = 0;
+  const tickets = new Map<string, RedeemedIdentity>();
+  let redeemMode: "normal" | "redirect" | "bad" | "unavailable" = "normal";
   const roster = createServer(async (req, res) => {
+    if (req.url === "/api/service/sso-redeem") {
+      assert.equal(req.method, "POST");
+      assert.equal(req.headers.authorization, "Bearer synthetic-roster-service-key");
+      let raw = ""; for await (const part of req) raw += part;
+      if (redeemMode === "redirect") { res.writeHead(302, { Location: "/elsewhere" }); res.end(); return; }
+      if (redeemMode === "bad") { res.setHeader("Content-Type", "application/json"); res.end('{"role":"owner"}'); return; }
+      if (redeemMode === "unavailable") { res.writeHead(503); res.end(); return; }
+      const { ticket } = JSON.parse(raw);
+      const person = tickets.get(ticket);
+      tickets.delete(ticket); // Roster is the atomic single-use authority.
+      if (!person) { res.writeHead(401); res.end(); return; }
+      res.setHeader("Content-Type", "application/json"); res.end(JSON.stringify(person)); return;
+    }
     rosterCalls++;
     assert.equal(req.url, "/api/service/sign-in-check");
     assert.equal(req.method, "POST");
@@ -91,7 +107,7 @@ test("HWD foundation: isolated development security suite", async (t) => {
   const address = roster.address(); assert(address && typeof address !== "string");
   process.env.ROSTER_BASE_URL = `http://127.0.0.1:${address.port}`;
   const services: Services = {
-    db: testDb, roster: checkRoster, now: () => new Date(time),
+    db: testDb, roster: checkRoster, redeemTicket: redeemRosterTicket, now: () => new Date(time),
     email: async (email, link) => { await sendSignInLink(email, link); captured.push(link); },
     storage: {
       async save(bytes) { const id = randomUUID(); files.set(id, bytes); return id; },
@@ -110,10 +126,13 @@ test("HWD foundation: isolated development security suite", async (t) => {
     return new URL(captured.at(-1)!).searchParams.get("token")!;
   };
   const login = async (email: string) => {
-    const token = await link(email);
-    const res = await request(app).post("/api/auth/verify").set("X-Forwarded-For", ip()).send({ token });
-    assert.equal(res.status, 200);
-    return { res, cookie: res.headers["set-cookie"][0].split(";")[0] as string, token };
+    // Synthetic legacy sessions exercise existing local-grant authorization/rechecks.
+    // Real magic-link/admin and SSO entry flows are tested through HTTP separately.
+    const raw = newToken();
+    await testDb.insert(sessions).values({ hash: hashToken(raw), personId: `synthetic-${email.split("@")[0]}`,
+      displayName: "Synthetic Test Person", goesBy: "Test", email, createdAt: time,
+      expiresAt: new Date(time.getTime() + 30 * DAY), lastRenewedAt: time, lastRosterCheckAt: time, lastRosterSuccessAt: time });
+    return { cookie: `site_session=${raw}` };
   };
   let adminCookie = "", memberCookie = "", editorCookie = "", documentId = "", replacementId = "";
   try {
@@ -129,10 +148,13 @@ test("HWD foundation: isolated development security suite", async (t) => {
         assert.equal(res.headers["cache-control"], "no-store");
       }
     });
-    await t.test("missing bootstrap setting permits member sign-in but creates no grant", async () => {
+    await t.test("Roster member sign-in needs no bootstrap setting or local grant", async () => {
       delete process.env.BOOTSTRAP_PERSON_ID;
-      const signed = await login("no-bootstrap@example.invalid");
-      assert.equal(signed.res.body.role, "member");
+      tickets.set("synthetic-no-bootstrap", { personId: "synthetic-no-bootstrap", displayName: "Test, Member",
+        goes_by: null, email: "no-bootstrap@example.invalid", rosterAdmin: false, role: "member", authenticated_at: time.toISOString() });
+      const signed = await request(app).get("/auth/sso?ticket=synthetic-no-bootstrap").set("X-Forwarded-For", ip()).expect(303);
+      await request(app).get("/api/auth/session").set("Cookie", signed.headers["set-cookie"][0]).expect(200)
+        .expect(res => assert.equal(res.body.role, "member"));
       assert.equal((await testDb.select().from(grants)).length, 0);
       process.env.BOOTSTRAP_PERSON_ID = "synthetic-admin";
     });
@@ -150,6 +172,69 @@ test("HWD foundation: isolated development security suite", async (t) => {
       adminCookie = cookie.split(";")[0];
       const [session] = await testDb.select().from(sessions).where(eq(sessions.hash, hashToken(adminCookie.split("=")[1]!)));
       assert.equal(session!.expiresAt.getTime() - time.getTime(), 30 * DAY);
+      assert.equal(session!.signInMethod, "magic-link");
+    });
+    await t.test("SSO entry URL, strict return-path validation, session role and authenticated-at provenance", async () => {
+      const entry = await request(app).get("/api/auth/roster-entry").query({ to: "/meetings/directors?year=2026" }).expect(200);
+      const expected = `${process.env.ROSTER_BASE_URL}/sign-in?app=site&to=%2Fmeetings%2Fdirectors%3Fyear%3D2026&origin=https%3A%2F%2Fhwd-test.example.invalid`;
+      assert.equal(entry.body.url, expected);
+      assert.equal(rosterEntry(undefined), `${process.env.ROSTER_BASE_URL}/sign-in?app=site&to=%2F&origin=https%3A%2F%2Fhwd-test.example.invalid`);
+      assert.equal(returnPath("/meetings?year=2026#top"), "/meetings?year=2026#top");
+      for (const bad of ["https://evil.example", "//evil.example", "/\\evil.example", "/%2Fevil.example", "/%5cevil.example", "/\nevil", "", ["//evil"]]) {
+        assert.throws(() => returnPath(bad));
+        await request(app).get("/auth/sso").query({ ticket: "unused", to: bad }).set("X-Forwarded-For", ip()).expect(400);
+      }
+      await request(app).get("/api/auth/roster-entry").query({ to: "https://evil.example" }).expect(400);
+      for (const role of ["member", "editor", "admin"] as const) {
+        const ticket = `role-${role}`;
+        // Roster role, not rosterAdmin or a conflicting local grant, controls SSO.
+        const personId = role === "member" ? "synthetic-admin" : `synthetic-sso-${role}`;
+        tickets.set(ticket, { personId, displayName: "Synthetic SSO Person", goes_by: "SSO", email: role === "member" ? "admin@example.invalid" : `sso-${role}@example.invalid`,
+          rosterAdmin: false, role, authenticated_at: "2026-10-28T11:59:00.000Z" });
+        const signed = await request(app).get("/auth/sso").query({ ticket, to: "/meetings?year=2026" }).set("X-Forwarded-For", ip()).expect(303);
+        assert.equal(signed.headers.location, "/meetings?year=2026");
+        const cookie = signed.headers["set-cookie"][0].split(";")[0];
+        const identity = await request(app).get("/api/auth/session").set("Cookie", cookie).expect(200);
+        assert.equal(identity.body.role, role);
+        const [stored] = await testDb.select().from(sessions).where(eq(sessions.hash, hashToken(cookie.split("=")[1]!)));
+        assert.equal(stored!.signInMethod, "roster");
+        assert.equal(stored!.rosterRole, role);
+        assert.equal(stored!.authenticatedAt!.toISOString(), "2026-10-28T11:59:00.000Z");
+        assert.equal(stored!.expiresAt.getTime() - time.getTime(), 30 * DAY);
+        assert.match(signed.headers["set-cookie"][0], /HttpOnly/);
+        await request(app).get("/auth/sso").query({ ticket }).set("X-Forwarded-For", ip()).expect(401);
+      }
+      const entries = await testDb.select().from(auditLog).where(eq(auditLog.description, "Signed in via Roster"));
+      assert(entries.length >= 3);
+    });
+    await t.test("SSO invalid, expired, replayed, unexpected, redirected and unreachable tickets fail closed; 20/15-minute address limit", async () => {
+      for (const ticket of ["invalid", "expired"]) {
+        const refused = await request(app).get("/auth/sso").query({ ticket }).set("X-Forwarded-For", ip()).expect(401);
+        assert.match(refused.text, /That sign-in link has expired or was already used. Start again from the Farm site./);
+        assert.equal(refused.headers["set-cookie"], undefined);
+      }
+      for (const next of ["bad", "redirect", "unavailable"] as const) {
+        redeemMode = next;
+        await request(app).get("/auth/sso?ticket=anything").set("X-Forwarded-For", ip()).expect(401);
+      }
+      redeemMode = "normal";
+      const saved = process.env.ROSTER_BASE_URL; process.env.ROSTER_BASE_URL = "http://127.0.0.1:1";
+      await request(app).get("/auth/sso?ticket=anything").set("X-Forwarded-For", ip()).expect(401);
+      process.env.ROSTER_BASE_URL = saved;
+      const limitedIp = ip();
+      for (let i = 0; i < 20; i++) await request(app).get("/auth/sso?ticket=invalid").set("X-Forwarded-For", limitedIp).expect(401);
+      await request(app).get("/auth/sso?ticket=invalid").set("X-Forwarded-For", limitedIp).expect(429);
+    });
+    await t.test("magic-link back door refuses a member; local admin still signs in; sign-out offers Roster URL", async () => {
+      const token = await link("backdoor-member@example.invalid");
+      await request(app).post("/api/auth/verify").set("X-Forwarded-For", ip()).send({ token }).expect(401);
+      const adminToken = await link("admin@example.invalid");
+      const signed = await request(app).post("/api/auth/verify").set("X-Forwarded-For", ip()).send({ token: adminToken }).expect(200);
+      assert.equal(signed.body.role, "admin");
+      const cookie = signed.headers["set-cookie"][0].split(";")[0];
+      await request(app).post("/api/auth/sign-out").set("Cookie", cookie).expect(200);
+      await request(app).get("/api/auth/session").set("Cookie", cookie).expect(401);
+      await request(app).get("/api/auth/roster-sign-out").expect(200, { url: `${process.env.ROSTER_BASE_URL}/sign-out` });
     });
     await t.test("denied, unreachable, unexpected and redirected Roster answers are neutral and issue no token", async () => {
       for (const nextMode of ["deny", "bad", "redirect"] as const) {
@@ -178,6 +263,8 @@ test("HWD foundation: isolated development security suite", async (t) => {
       process.env.NODE_ENV = "test"; process.env.APP_ORIGIN = old;
     });
     await t.test("two simultaneous verifies: exactly one success; reuse refused", async () => {
+      const [raceGrant] = await testDb.insert(grants).values({ personId: "synthetic-race",
+        displayName: "Synthetic Race Admin", role: "admin", grantedBy: "synthetic-admin" }).returning();
       const token = await link("race@example.invalid");
       const [unused] = await testDb.select().from(loginTokens).where(eq(loginTokens.hash, hashToken(token)));
       await request(app).get("/api/auth/verify").set("X-Forwarded-For", ip()).expect(200);
@@ -185,6 +272,7 @@ test("HWD foundation: isolated development security suite", async (t) => {
       const result = await Promise.all([1, 2].map(() => request(app).post("/api/auth/verify").set("X-Forwarded-For", ip()).send({ token })));
       assert.deepEqual(result.map(r => r.status).sort(), [200, 401]);
       await request(app).post("/api/auth/verify").set("X-Forwarded-For", ip()).send({ token }).expect(401);
+      await testDb.update(grants).set({ endedAt: time }).where(eq(grants.id, raceGrant!.id));
     });
     await t.test("expired tokens and removal between request and verify are refused", async () => {
       const token = await link("expires@example.invalid"); time = new Date(time.getTime() + 16 * 60_000);
@@ -581,7 +669,9 @@ test("HWD foundation: isolated development security suite", async (t) => {
       });
       await mkdir("../../generated-artifacts", { recursive: true });
       try {
-        await page.goto(`${origin}/sign-in`);
+        await request(app).post("/api/admin/grants").set("Cookie", adminCookie)
+          .send({ personId: "synthetic-browser", displayName: "Synthetic Browser", role: "admin" }).expect(201);
+        await page.goto(`${origin}/admin/sign-in`);
         await page.getByTestId("input-email").fill("browser@example.invalid");
         await page.getByTestId("button-request-link").click();
         await page.getByTestId("status-link-sent").waitFor();
@@ -592,11 +682,8 @@ test("HWD foundation: isolated development security suite", async (t) => {
         assert.equal(notUsed!.usedAt, null, "GET page and JS gate must not consume token");
         await page.getByTestId("button-continue").click();
         await page.getByTestId("link-nav-meetings").waitFor();
-        assert.equal(await page.getByTestId("link-nav-admin").count(), 0, "member never sees Admin");
-        console.info("Browser: submitted sign-in; console link; Continue click signed in; member has no Admin");
-        // Grant through the admin API, never by bypassing browser authentication.
-        await request(app).post("/api/admin/grants").set("Cookie", adminCookie)
-          .send({ personId: "synthetic-browser", displayName: "Synthetic Browser", role: "admin" }).expect(201);
+        assert.equal(await page.getByTestId("link-nav-admin").count(), 1, "back-door administrator sees Admin");
+        console.info("Browser: submitted admin back-door sign-in; console link; Continue click signed in");
         await page.reload();
         await page.getByTestId("link-nav-admin").filter({ visible: true }).click();
         await page.getByTestId("old-site-import-panel").waitFor();
