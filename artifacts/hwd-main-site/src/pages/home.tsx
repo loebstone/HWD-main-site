@@ -49,7 +49,7 @@ export default function HomePage() {
             <p className="text-muted-foreground" data-testid="empty-app-links">Farm apps are not set up yet.</p> :
             <div className="grid sm:grid-cols-2 gap-3">{apps.data.map((app) => {
               const Icon = appIcons[app.id];
-              return <a key={app.id} href={app.url} target="_blank" rel="noopener noreferrer" className="group flex items-center gap-4 rounded-xl border bg-card px-5 py-4 transition-colors hover:border-primary/40" data-testid={`link-app-${app.id}`}>
+              return <a key={app.id} href={app.url} className="group flex items-center gap-4 rounded-xl border bg-card px-5 py-4 transition-colors hover:border-primary/40" data-testid={`link-app-${app.id}`}>
                 <span className="grid h-11 w-11 place-items-center rounded-lg bg-secondary text-primary"><Icon className="h-5 w-5" /></span>
                 <span className="flex-1 font-medium">{app.label}</span><ArrowRight className="h-4 w-4 text-muted-foreground transition-transform group-hover:translate-x-1" />
               </a>;

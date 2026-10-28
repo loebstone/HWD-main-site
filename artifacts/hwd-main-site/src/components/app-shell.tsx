@@ -37,7 +37,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const links = (mobile: boolean) =>
     items.map((it) =>
       "external" in it && it.external ? (
-        <a key={it.label} href={calendarUrl || undefined} target="_blank" rel="noopener noreferrer"
+        <a key={it.label} href={calendarUrl || undefined}
           aria-disabled={!calendarUrl} onClick={(event) => { if (!calendarUrl) event.preventDefault(); }}
           className={cn("inline-flex items-center gap-1 rounded-md px-3 py-2 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors", mobile && "text-lg py-3")}
           data-testid="link-nav-calendar">
