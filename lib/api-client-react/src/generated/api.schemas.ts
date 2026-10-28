@@ -5,6 +5,57 @@
  * HWD Main Site private family API
  * OpenAPI spec version: 1.0.0
  */
+export interface OldSiteImportInput {
+  dryRun: boolean;
+}
+
+export type OldSiteImportRowResult = typeof OldSiteImportRowResult[keyof typeof OldSiteImportRowResult];
+
+
+export const OldSiteImportRowResult = {
+  would_import: 'would import',
+  imported: 'imported',
+  already_imported: 'already imported',
+  skipped: 'skipped',
+  failed: 'failed',
+} as const;
+
+export interface OldSiteImportRow {
+  sheetId: string;
+  title: string;
+  section: string;
+  result: OldSiteImportRowResult;
+  reason: string;
+}
+
+export type OldSiteImportRunStatus = typeof OldSiteImportRunStatus[keyof typeof OldSiteImportRunStatus];
+
+
+export const OldSiteImportRunStatus = {
+  running: 'running',
+  completed: 'completed',
+  failed: 'failed',
+  interrupted: 'interrupted',
+} as const;
+
+export interface OldSiteImportRun {
+  id: string;
+  dryRun: boolean;
+  status: OldSiteImportRunStatus;
+  startedAt: string;
+  updatedAt: string;
+  /** @nullable */
+  finishedAt: string | null;
+  actorPersonId: string;
+  actorName: string;
+  totalRows: number;
+  rows: OldSiteImportRow[];
+  /** @nullable */
+  error: string | null;
+  /** @nullable */
+  sourceHash: string | null;
+}
+
 export interface HealthStatus {
   status: string;
 }
@@ -296,6 +347,7 @@ export const AuditAction = {
   'announcement-retire': 'announcement-retire',
   'notice-edit': 'notice-edit',
   'apps-edit': 'apps-edit',
+  import: 'import',
 } as const;
 
 export interface AuditEntry {

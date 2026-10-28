@@ -4,7 +4,7 @@ import { pipeline } from "node:stream/promises";
 import { and, asc, desc, eq, isNull } from "drizzle-orm";
 import { z } from "zod";
 import { documents } from "@workspace/db";
-import { documentMetadata, publicDocument, validPdf } from "../lib/documents";
+import { documentMetadata, insertNewDocument, publicDocument, validPdf } from "../lib/documents";
 import { audit } from "../lib/audit";
 import { requireEditor, visitorAddress } from "../middlewares/security";
 import type { Services } from "../lib/services";
@@ -45,12 +45,7 @@ export function documentRoutes(s: Services) {
   router.post("/", async (req, res): Promise<void> => {
     const meta = documentMetadata(req.body);
     if (meta.type !== "link") { res.status(400).json({ error: "Use PDF upload for file documents" }); return; }
-    const row = await s.db.transaction(async tx => {
-      const [doc] = await tx.insert(documents).values({ ...meta, uploadedBy: req.siteIdentity!.personId,
-        uploadedByName: req.siteIdentity!.displayName }).returning();
-      await audit(tx, req.siteIdentity!, "document-upload", doc!.id, "Added external document link", visitorAddress(req));
-      return doc!;
-    });
+    const row = await s.db.transaction(tx => insertNewDocument(s, tx, req.siteIdentity!, visitorAddress(req), meta));
     res.status(201).json(publicDocument(row));
   });
   router.post("/upload", upload, async (req, res): Promise<void> => {
@@ -58,13 +53,7 @@ export function documentRoutes(s: Services) {
     if (meta.type !== "pdf" || !req.file || !validPdf(req.file.buffer)) {
       res.status(400).json({ error: "Upload a valid PDF, up to 50 MB" }); return;
     }
-    const key = await s.storage.save(req.file.buffer);
-    const row = await s.db.transaction(async tx => {
-      const [doc] = await tx.insert(documents).values({ ...meta, storageKey: key,
-        uploadedBy: req.siteIdentity!.personId, uploadedByName: req.siteIdentity!.displayName }).returning();
-      await audit(tx, req.siteIdentity!, "document-upload", doc!.id, "Uploaded private PDF", visitorAddress(req));
-      return doc!;
-    });
+    const row = await s.db.transaction(tx => insertNewDocument(s, tx, req.siteIdentity!, visitorAddress(req), meta, req.file!.buffer));
     res.status(201).json(publicDocument(row));
   });
   router.patch("/:id", async (req, res): Promise<void> => {

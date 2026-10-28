@@ -171,7 +171,7 @@ export function AdminPeoplePage() {
   </div>;
 }
 
-const ACTIONS: AuditAction[] = ["sign-in", "sign-out", "document-open", "document-upload", "document-replace", "document-retire", "grant-create", "grant-end", "announcement-create", "announcement-edit", "announcement-retire", "notice-edit", "apps-edit"];
+const ACTIONS: AuditAction[] = ["sign-in", "sign-out", "document-open", "document-upload", "document-replace", "document-retire", "grant-create", "grant-end", "announcement-create", "announcement-edit", "announcement-retire", "notice-edit", "apps-edit", "import"];
 export function AdminAuditPage() {
   const [personId, setPersonId] = useState("all");
   const [action, setAction] = useState("all");

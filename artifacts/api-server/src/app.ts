@@ -12,6 +12,7 @@ import { documentRoutes } from "./routes/documents";
 import { grantRoutes } from "./routes/grants";
 import { announcementRoutes } from "./routes/announcements";
 import { auditRoutes } from "./routes/audit";
+import { oldSiteImportRoutes } from "./routes/old-site-import";
 import { adminSettingsRoutes, appLinkRoutes, publicHomeNoticeRoutes } from "./routes/settings";
 import { csrf, requireSession } from "./middlewares/security";
 import { publicDocument } from "./lib/documents";
@@ -44,6 +45,7 @@ export function createApp(services: Partial<Services> = {}): Express {
   app.use("/api/documents", documentRoutes(s));
   app.use("/api/admin/grants", grantRoutes(s));
   app.use("/api/admin/audit", auditRoutes(s));
+  app.use("/api/admin/old-site-import", oldSiteImportRoutes(s));
   app.use("/api/admin", adminSettingsRoutes(s));
   app.get("/api/home", async (req, res): Promise<void> => {
     const [count] = await s.db.select({ value: sql<number>`count(*)::integer` }).from(documents).where(isNull(documents.retiredAt));

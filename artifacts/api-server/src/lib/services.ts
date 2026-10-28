@@ -8,6 +8,7 @@ export interface Services {
   email: typeof sendSignInLink;
   storage: typeof privateStorage;
   now: () => Date;
+  importFetch?: typeof fetch;
 }
 export const defaultServices: Services = { db, roster: checkRoster, email: sendSignInLink,
   storage: privateStorage, now: () => new Date() };

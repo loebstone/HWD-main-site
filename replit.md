@@ -63,6 +63,15 @@ The private HWD Farm family website for Roster-approved sign-in, secure document
 - `site_session` is the only site cookie; its 30-day sliding expiry has a 12-month absolute limit. Daily Roster checks retry one time only on network/timeout/server unavailability (5 seconds, then 8 seconds); a continued outage is throttled for an hour and tolerated for up to three days since the last successful check. A real not-allowed answer ends the session immediately.
 - **Database separation:** each Replit app has its own PostgreSQL instance, even though the default database name is `heliumdb`. This site's `heliumdb` is a separate instance from the Roster's database. The development query returned `current_database() = heliumdb`; `inet_server_addr()` returned `NULL` because this connection uses a local socket. The configured instance host is `helium`.
 
+## Old-site content import
+
+- Admin > Documents has an admin-only **Import from old site** panel. Server routes are `GET/POST /api/admin/old-site-import`; neither is anonymous or editor-accessible.
+- `artifacts/api-server/src/lib/old-site-fetch.ts` reads the published CSV fresh on every run, parses quoted CSV, restricts all fetches/redirects to HTTPS Google hosts, limits fetches to 20 seconds and PDFs to 50 MB, and follows at most one Drive confirmation link/form.
+- `artifacts/api-server/src/lib/old-site-import.ts` validates/maps each row, continues after individual failures, and uses the same private-storage/document-creation function as manual uploads. No signed/public file URLs are generated. The current published sheet's blank twelfth header is the supporting-text column.
+- Importing is idempotent by the original sheet `id`, stored as `legacy_sheet_id` on documents/announcements, including retired records. Per-row database advisory locks and unique indexes prevent concurrent duplicates. Every created row also has an `import` audit entry attributed to the authenticated admin with description `Import from old site: <sheet id>`.
+- Runs execute in the background so the HTTP request does not time out. The last run table, time, actor, source hash and progress are persisted as `old-site-import-last-run` in site settings; the UI polls while running. A stale two-minute progress lease reports an interrupted run and permits a safe rerun. Dry runs write the report only, fetch no source files, and label planned rows **would import**.
+- The browser panel lives in `artifacts/hwd-main-site/src/components/admin/old-site-import.tsx`; contracts and hooks are generated from the OpenAPI spec.
+
 ## Anonymous routes (closed list)
 
 - `GET /api/healthz` — liveness only; exposes no identity or document data.

@@ -1,0 +1,16 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "C2nJMGwDmy2IkHNbhS4fr"
+uri = "file://generated-artifacts/hwd-old-site-import-report.html"
+type = "html"
+title = "HWD old-site import — dry-run report"
+description = "Full 33-row live dry-run table, 25 passing tests, environment evidence, and the remaining admin sign-in dependency. Actual import has not run."
+logical_id = "7c40075c-2e4f-49f7-a742-d30d163bab9d"
+content_hash = "sha256:e60596d88947df4d42fce7644cc693780166e6253a1db6c47eb8243475dabb17"
+size = 10969
+mtime_ms = 1793159310102
+storage_uri = "gcs://replit-rams-assets-riker/rams/assets/repl:523147e6-cb8b-4637-84af-9a3e42f6fdfe/7c40075c-2e4f-49f7-a742-d30d163bab9d/7a9f50be-5cb2-4491-9ca7-18fc43b5bb62"
+storage_version_token = "1793159310645683"
+content_type = "text/html"

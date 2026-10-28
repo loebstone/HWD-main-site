@@ -23,4 +23,5 @@ export const AuditAction = {
   'announcement-retire': 'announcement-retire',
   'notice-edit': 'notice-edit',
   'apps-edit': 'apps-edit',
+  import: 'import',
 } as const;

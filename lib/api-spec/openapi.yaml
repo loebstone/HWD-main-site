@@ -333,8 +333,64 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/Message" }
+  /admin/old-site-import:
+    get:
+      operationId: getOldSiteImport
+      responses:
+        "200":
+          description: Last import or dry run, visible only to admins
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/OldSiteImportRun" }
+        "204":
+          description: No run yet
+    post:
+      operationId: startOldSiteImport
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/OldSiteImportInput" }
+      responses:
+        "202":
+          description: Run started; poll GET for progress and results
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/OldSiteImportRun" }
+        "409":
+          description: A run is already in progress
 components:
   schemas:
+    OldSiteImportInput:
+      type: object
+      required: [dryRun]
+      properties:
+        dryRun: { type: boolean }
+    OldSiteImportRow:
+      type: object
+      required: [sheetId, title, section, result, reason]
+      properties:
+        sheetId: { type: string }
+        title: { type: string }
+        section: { type: string }
+        result: { type: string, enum: [would import, imported, already imported, skipped, failed] }
+        reason: { type: string }
+    OldSiteImportRun:
+      type: object
+      required: [id, dryRun, status, startedAt, updatedAt, finishedAt, actorPersonId, actorName, totalRows, rows, error, sourceHash]
+      properties:
+        id: { type: string }
+        dryRun: { type: boolean }
+        status: { type: string, enum: [running, completed, failed, interrupted] }
+        startedAt: { type: string }
+        updatedAt: { type: string }
+        finishedAt: { type: [string, "null"] }
+        actorPersonId: { type: string }
+        actorName: { type: string }
+        totalRows: { type: integer }
+        rows: { type: array, items: { $ref: "#/components/schemas/OldSiteImportRow" } }
+        error: { type: [string, "null"] }
+        sourceHash: { type: [string, "null"] }
     HealthStatus:
       type: object
       required: [status]
@@ -487,7 +543,7 @@ components:
         hideAfter: { type: string, format: date }
     AuditAction:
       type: string
-      enum: [sign-in, sign-out, document-open, document-upload, document-replace, document-retire, grant-create, grant-end, announcement-create, announcement-edit, announcement-retire, notice-edit, apps-edit]
+      enum: [sign-in, sign-out, document-open, document-upload, document-replace, document-retire, grant-create, grant-end, announcement-create, announcement-edit, announcement-retire, notice-edit, apps-edit, import]
     AuditEntry:
       type: object
       required: [id, at, actorPersonId, actorName, action, targetId, description, visitorAddress]

@@ -45,6 +45,8 @@ import type {
   ListAuditLogParams,
   ListDocumentsParams,
   Message,
+  OldSiteImportInput,
+  OldSiteImportRun,
   PublicNotice,
   TokenInput
 } from './api.schemas';
@@ -2489,5 +2491,182 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
         TContext
       > => {
       return useMutation(getEndGrantMutationOptions(options), queryClient);
+    }
+
+export const getGetOldSiteImportUrl = () => {
+
+
+
+
+  return `/api/admin/old-site-import`
+}
+
+export const getOldSiteImport = async ( options?: Parameters<typeof customFetch>[1]): Promise<OldSiteImportRun | void> => {
+
+  return customFetch<OldSiteImportRun | void>(getGetOldSiteImportUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetOldSiteImportQueryKey = () => {
+    return [
+    `/api/admin/old-site-import`
+    ] as const;
+    }
+
+
+export const getGetOldSiteImportQueryOptions = <TData = Awaited<ReturnType<typeof getOldSiteImport>>, TError = ErrorType<unknown>>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getOldSiteImport>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetOldSiteImportQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getOldSiteImport>>> = ({ signal }) => getOldSiteImport({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getOldSiteImport>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetOldSiteImportQueryResult = NonNullable<Awaited<ReturnType<typeof getOldSiteImport>>>
+export type GetOldSiteImportQueryError = ErrorType<unknown>
+
+
+export function useGetOldSiteImport<TData = Awaited<ReturnType<typeof getOldSiteImport>>, TError = ErrorType<unknown>>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getOldSiteImport>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getOldSiteImport>>,
+          TError,
+          Awaited<ReturnType<typeof getOldSiteImport>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetOldSiteImport<TData = Awaited<ReturnType<typeof getOldSiteImport>>, TError = ErrorType<unknown>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getOldSiteImport>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getOldSiteImport>>,
+          TError,
+          Awaited<ReturnType<typeof getOldSiteImport>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetOldSiteImport<TData = Awaited<ReturnType<typeof getOldSiteImport>>, TError = ErrorType<unknown>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getOldSiteImport>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useGetOldSiteImport<TData = Awaited<ReturnType<typeof getOldSiteImport>>, TError = ErrorType<unknown>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getOldSiteImport>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetOldSiteImportQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getStartOldSiteImportUrl = () => {
+
+
+
+
+  return `/api/admin/old-site-import`
+}
+
+export const startOldSiteImport = async (oldSiteImportInput: OldSiteImportInput, options?: Parameters<typeof customFetch>[1]): Promise<OldSiteImportRun> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<OldSiteImportRun>(getStartOldSiteImportUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(oldSiteImportInput)
+  }
+);}
+
+
+
+
+
+export const getStartOldSiteImportMutationKey = () => ['startOldSiteImport'] as const;
+
+export const getStartOldSiteImportMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof startOldSiteImport>>, TError,StartOldSiteImportMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof startOldSiteImport>>, TError,StartOldSiteImportMutationVariables, TContext> => {
+
+const mutationKey = getStartOldSiteImportMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof startOldSiteImport>>, StartOldSiteImportMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  startOldSiteImport(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type StartOldSiteImportMutationResult = NonNullable<Awaited<ReturnType<typeof startOldSiteImport>>>
+    export type StartOldSiteImportMutationBody = BodyType<OldSiteImportInput>
+    export type StartOldSiteImportMutationError = ErrorType<void>
+    export type StartOldSiteImportMutationVariables = {data: BodyType<OldSiteImportInput>}
+
+    export const useStartOldSiteImport = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof startOldSiteImport>>, TError,StartOldSiteImportMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof startOldSiteImport>>,
+        TError,
+        StartOldSiteImportMutationVariables,
+        TContext
+      > => {
+      return useMutation(getStartOldSiteImportMutationOptions(options), queryClient);
     }
 

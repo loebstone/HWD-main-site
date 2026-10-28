@@ -17,6 +17,8 @@ import { sendSignInLink } from "../src/lib/email";
 import { hashToken, newToken } from "../src/lib/auth";
 import { appOrigin, DAY, neutralMessage } from "../src/lib/config";
 import { logger } from "../src/lib/logger";
+import { fetchGoogle, fetchOldSitePdf, googleConfirmLink, OLD_SITE_INDEX, parseOldSiteCsv, PDF_LIMIT } from "../src/lib/old-site-fetch";
+import { planOldSiteRow } from "../src/lib/old-site-import";
 import type { Services } from "../src/lib/services";
 
 // Tests use one dedicated schema on the development DB, synthetic *.invalid identities,
@@ -332,6 +334,10 @@ test("HWD foundation: isolated development security suite", async (t) => {
 
       const memberApps = await request(app).get("/api/apps").set("Cookie", featureMember.cookie).expect(200);
       assert.deepEqual(memberApps.body.map((item: { id: string }) => item.id).sort(), ["calendar", "roster"]);
+      const memberHome = await request(app).get("/api/home").set("Cookie", featureMember.cookie).expect(200);
+      assert.deepEqual(memberHome.body.apps.map((item: { id: string }) => item.id).sort(), ["calendar", "roster"]);
+      assert(!JSON.stringify(memberHome.body).includes("forecast.hwdfarm.com"), "member Home response omits Forecast on the server");
+      assert(!JSON.stringify(memberHome.body).includes("captable.hwdfarm.com"), "member Home response omits Cap Table on the server");
       const adminApps = await request(app).get("/api/admin/apps").set("Cookie", adminCookie).expect(200);
       assert.equal(adminApps.body.length, 4);
       await request(app).put("/api/admin/apps").set("Cookie", editorCookie)
@@ -352,6 +358,101 @@ test("HWD foundation: isolated development security suite", async (t) => {
       assert.equal(events.length, 2);
       const appEvents = await testDb.select().from(auditLog).where(eq(auditLog.action, "apps-edit"));
       assert.equal(appEvents.length, 1);
+    });
+    await t.test("old-site import is admin-only, dry-run fetches only CSV, real import is private, audited and idempotent", async () => {
+      const csvRows = [
+        ["", "title", "section", "year", "type", "embed_url", "open_url", "sort_order", "tags", "announcement_text", "publish_date", ""],
+        ["synthetic-old-doc", "Synthetic 2025 minutes", "shareholders", "", "google_doc", "", "https://docs.google.com/document/d/good/view", "bad", "one, two", "", "", "Preserved note"],
+        ["synthetic-old-pdf", "Synthetic forestry PDF", "logging", "", "pdf", "", "https://drive.google.com/file/d/confirm/view", "3", "", "", "", ""],
+        ["synthetic-old-ann", "Synthetic old announcement", "home_highlight", "", "announcement", "", "", "", "", "Body with\nmultiple lines and \"quotes\"", "2020-01-02", ""],
+        ["synthetic-old-photo", "Synthetic album", "governing", "", "link", "", "https://synthetic.smugmug.com/", "", "", "", "", "Synthetic album note"],
+        ["synthetic-old-address", "ADDRESS master LIST", "governing", "", "google_sheet", "", "", "", "", "", "", ""],
+        ["synthetic-old-season", "2026 Season", "governing", "", "google_sheet", "", "", "", "", "", "", ""],
+        ["synthetic-old-calendar", "Calendar", "governing", "", "google_calendar", "", "", "", "", "", "", ""],
+        ["synthetic-old-property", "Property rules", "property", "", "google_doc", "", "", "", "", "", "", ""],
+        ["synthetic-old-year", "No year", "directors", "", "google_doc", "", "https://docs.google.com/document/d/good/view", "", "", "", "", ""],
+        ["synthetic-old-badpdf", "Non PDF", "governing", "", "google_doc", "", "https://docs.google.com/document/d/badpdf/view", "", "", "", "", ""],
+        ["synthetic-old-escape", "Unsafe redirect", "governing", "", "google_doc", "", "https://docs.google.com/document/d/escape/view", "", "", "", "", ""],
+        ["synthetic-old-after-failure", "After failure", "home_highlight", "", "google_sheet", "", "https://docs.google.com/spreadsheets/d/good/view", "", "", "", "", ""],
+      ];
+      const csv = csvRows.map(row => row.map(cell => `"${cell.replaceAll('"', '""')}"`).join(",")).join("\r\n");
+      const parsed = parseOldSiteCsv(csv);
+      assert.equal(parsed[0]!.id, "synthetic-old-doc");
+      assert.equal(parsed[2]!.announcement_text, 'Body with\nmultiple lines and "quotes"');
+      assert.equal(parsed[3]!.supporting_text, "Synthetic album note");
+      assert.throws(() => planOldSiteRow(parsed[8]!, time), /year missing/);
+      const calls: string[] = [];
+      const fetcher: typeof fetch = async input => {
+        const url = String(input); calls.push(url);
+        if (url === OLD_SITE_INDEX) return new Response(csv);
+        if (url.includes("/badpdf/")) return new Response("<html>Not publicly exported</html>");
+        if (url.includes("/escape/")) return new Response(null, { status: 302, headers: { location: "https://evil.example.invalid/file" } });
+        if (url.includes("/uc?")) return new Response('<a href="https://drive.usercontent.google.com/download?id=confirm&amp;confirm=yes">Confirm</a>');
+        return new Response(new Uint8Array(pdf), { headers: { "content-type": "application/pdf" } });
+      };
+      const importingApp = createApp({ ...services, importFetch: fetcher });
+      await request(importingApp).get("/api/admin/old-site-import").expect(401);
+      await request(importingApp).post("/api/admin/old-site-import").set("Cookie", editorCookie).send({ dryRun: true }).expect(403);
+      await request(importingApp).get("/api/admin/old-site-import").set("Cookie", editorCookie).expect(403);
+      const finish = async () => {
+        for (let n = 0; n < 200; n++) {
+          const response = await request(importingApp).get("/api/admin/old-site-import").set("Cookie", adminCookie).expect(200);
+          if (response.body.status !== "running") {
+            assert.equal(response.body.status, "completed", response.body.error); return response.body;
+          }
+          await new Promise(resolve => setTimeout(resolve, 10));
+        }
+        throw new Error("Synthetic import did not finish");
+      };
+      await request(importingApp).post("/api/admin/old-site-import").set("Cookie", adminCookie).send({ dryRun: true }).expect(202);
+      const dry = await finish();
+      assert.deepEqual(calls, [OLD_SITE_INDEX], "Dry run fetches the index only, no PDFs");
+      assert.equal(dry.rows.filter((row: { result: string }) => row.result === "would import").length, 7);
+      assert.equal(dry.rows.find((row: { sheetId: string }) => row.sheetId === "synthetic-old-year").reason, "year missing");
+      assert.equal((await testDb.select().from(documents).where(eq(documents.legacySheetId, "synthetic-old-doc"))).length, 0);
+      calls.length = 0;
+      await request(importingApp).post("/api/admin/old-site-import").set("Cookie", adminCookie).send({ dryRun: false }).expect(202);
+      const real = await finish();
+      assert.equal(real.rows.filter((row: { result: string }) => row.result === "imported").length, 5);
+      assert.equal(real.rows.filter((row: { result: string }) => row.result === "skipped").length, 4);
+      assert.equal(real.rows.filter((row: { result: string }) => row.result === "failed").length, 3);
+      assert.equal(calls.filter(url => url.includes("confirm=yes")).length, 1);
+      assert(!calls.some(url => url.includes("evil.example")), "Blocked redirect was never fetched");
+      const [imported] = await testDb.select().from(documents).where(eq(documents.legacySheetId, "synthetic-old-doc"));
+      assert(imported!.storageKey && files.has(imported!.storageKey));
+      assert.equal(imported!.year, 2025); assert.equal(imported!.sortOrder, 1);
+      assert.deepEqual(imported!.tags, ["one", "two"]); assert.equal(imported!.note, "Preserved note");
+      await request(importingApp).get(`/api/documents/${imported!.id}/open`).expect(401);
+      await request(importingApp).get(`/api/documents/${imported!.id}/open`).set("Cookie", adminCookie).expect(200).expect("Cache-Control", "no-store");
+      const [announcement] = await testDb.select().from(announcements).where(eq(announcements.legacySheetId, "synthetic-old-ann"));
+      assert.equal(announcement!.hideAfter, "2020-03-02"); assert.equal(announcement!.placement, "announcements");
+      const events = await testDb.select().from(auditLog).where(eq(auditLog.action, "import"));
+      assert.equal(events.length, 5);
+      assert(events.every(event => event.actorPersonId === real.actorPersonId && event.description.startsWith("Import from old site: synthetic-old-")));
+      await request(importingApp).post(`/api/documents/${imported!.id}/retire`).set("Cookie", adminCookie).expect(200);
+      calls.length = 0;
+      await request(importingApp).post("/api/admin/old-site-import").set("Cookie", adminCookie).send({ dryRun: false }).expect(202);
+      const repeated = await finish();
+      assert.equal(repeated.rows.filter((row: { result: string }) => row.result === "already imported").length, 5);
+      assert(!calls.some(url => url.includes("/good/") || url.includes("/uc?")), "Imported records, including retired, are not refetched");
+      assert.equal((await testDb.select().from(auditLog).where(eq(auditLog.action, "import"))).length, 5);
+    });
+    await t.test("Google import fetch limits, host restrictions and one confirmation are enforced", async () => {
+      const emptyRow = { id: "x", title: "1800 meeting", section: "directors", year: "", type: "google_doc",
+        open_url: "https://docs.google.com/document/d/x/view", embed_url: "", sort_order: "", tags: "" };
+      const plan = planOldSiteRow(emptyRow, time);
+      assert(plan.kind === "document"); assert.equal(plan.meta.year, 1800);
+      await assert.rejects(fetchGoogle("https://google.com.evil.invalid/file", PDF_LIMIT), /non-Google/);
+      await assert.rejects(fetchGoogle("https://drive.google.com/file", PDF_LIMIT,
+        async () => new Response("x", { headers: { "content-length": String(PDF_LIMIT + 1) } })), /50 MB/);
+      let count = 0;
+      await assert.rejects(fetchOldSitePdf("https://drive.google.com/uc?id=x", true, async () => {
+        count++; return new Response('<a href="/uc?id=x&amp;confirm=1">Confirm</a>');
+      }), /signature-validated PDF/);
+      assert.equal(count, 2, "Initial fetch plus exactly one confirmation");
+      assert.equal(googleConfirmLink('<form method="get" action="https://drive.usercontent.google.com/download"><input name="id" value="x"><input name="confirm" value="t"></form>',
+        new URL("https://drive.google.com/uc"))!.searchParams.get("confirm"), "t");
+      assert.throws(() => parseOldSiteCsv('id,title\n"unterminated'), /Unterminated/);
     });
     await t.test("ending a grant immediately removes editor rights; history remains", async () => {
       const created = await request(app).post("/api/admin/grants").set("Cookie", adminCookie)
@@ -390,7 +491,18 @@ test("HWD foundation: isolated development security suite", async (t) => {
     if (process.env.HWD_BROWSER_TEST === "1") await t.test("Chromium browser walkthrough: real UI, isolated API, stubbed Roster, console email", async () => {
       const { chromium } = await import("playwright");
       const browser = await chromium.launch({ headless: true, args: ["--no-sandbox"] });
-      const server = app.listen(0, "127.0.0.1");
+      const browserImportRows = [
+        ["id", "title", "section", "year", "type", "embed_url", "open_url", "sort_order", "tags", "announcement_text", "publish_date", "supporting_text"],
+        ["synthetic-browser-import-sh", "Browser imported shareholders", "shareholders", "2031", "google_doc", "", "https://docs.google.com/document/d/synthetic/view", "1", "", "", "", ""],
+        ["synthetic-browser-import-dir", "Browser imported directors", "directors", "2031", "google_doc", "", "https://docs.google.com/document/d/synthetic/view", "1", "", "", "", ""],
+        ["synthetic-browser-import-gov", "Browser imported governing", "governing", "", "pdf", "", "https://drive.google.com/file/d/synthetic/view", "1", "", "", "", ""],
+        ["synthetic-browser-import-log", "Browser imported logging", "logging", "", "google_sheet", "", "https://docs.google.com/spreadsheets/d/synthetic/view", "1", "", "", "", ""],
+        ["synthetic-browser-import-photo", "Browser imported photo archive", "photo_archive", "", "link", "", "https://synthetic.smugmug.com/", "1", "", "", "", "Synthetic album note"],
+      ];
+      const browserImportCsv = browserImportRows.map(row => row.join(",")).join("\n");
+      const browserApp = createApp({ ...services, importFetch: async input =>
+        String(input) === OLD_SITE_INDEX ? new Response(browserImportCsv) : new Response(new Uint8Array(pdf)) });
+      const server = browserApp.listen(0, "127.0.0.1");
       await new Promise<void>(resolve => server.once("listening", resolve));
       const target = server.address(); assert(target && typeof target !== "string");
       const origin = "http://127.0.0.1";
@@ -424,6 +536,41 @@ test("HWD foundation: isolated development security suite", async (t) => {
           .send({ personId: "synthetic-browser", displayName: "Synthetic Browser", role: "admin" }).expect(201);
         await page.reload();
         await page.getByTestId("link-nav-admin").filter({ visible: true }).click();
+        await page.getByTestId("old-site-import-panel").waitFor();
+        await page.getByTestId("button-import-dry-run").click();
+        await page.getByTestId("import-run-status").filter({ hasText: "Dry run · completed" }).waitFor();
+        assert.equal(await page.getByTestId("import-report-table").getByText("would import", { exact: true }).count(), 5);
+        assert.equal((await testDb.select().from(documents).where(eq(documents.legacySheetId, "synthetic-browser-import-sh"))).length, 0);
+        page.once("dialog", dialog => void dialog.accept());
+        await page.getByTestId("button-import-execute").click();
+        await page.getByTestId("import-run-status").filter({ hasText: "Import · completed" }).waitFor();
+        assert.equal(await page.getByTestId("import-report-table").getByText("imported", { exact: true }).count(), 5);
+        await page.reload();
+        await page.getByTestId("import-report-table").waitFor();
+        assert.equal(await page.getByTestId("import-report-table").getByText("imported", { exact: true }).count(), 5);
+        for (const [path, title] of [
+          ["/meetings/shareholders", "Browser imported shareholders"],
+          ["/meetings/directors", "Browser imported directors"], ["/governing", "Browser imported governing"],
+          ["/logging", "Browser imported logging"], ["/photo-archive", "Browser imported photo archive"],
+        ]) {
+          await page.goto(`${origin}${path}`);
+          await page.getByText(title, { exact: true }).waitFor();
+        }
+        const [browserImportedPdf] = await testDb.select().from(documents).where(eq(documents.legacySheetId, "synthetic-browser-import-gov"));
+        const importedPdfResponse = await page.evaluate(async url => {
+          const response = await fetch(url);
+          return { status: response.status, type: response.headers.get("content-type"), cache: response.headers.get("cache-control"),
+            signature: (await response.text()).slice(0, 5) };
+        }, `/api/documents/${browserImportedPdf!.id}/open`);
+        assert.deepEqual(importedPdfResponse, { status: 200, type: "application/pdf", cache: "no-store", signature: "%PDF-" });
+        await page.goto(`${origin}/admin/documents`);
+        page.once("dialog", dialog => void dialog.accept());
+        await page.getByTestId("button-import-execute").click();
+        await page.getByTestId("import-report-table").getByText("already imported", { exact: true }).first().waitFor();
+        await page.getByTestId("import-run-status").filter({ hasText: "Import · completed" }).waitFor();
+        assert.equal(await page.getByTestId("import-report-table").getByText("already imported", { exact: true }).count(), 5);
+        await page.screenshot({ path: "../../generated-artifacts/hwd-import-browser-report.jpg", fullPage: true });
+        console.info("Browser: synthetic dry run, import, persisted table, repeat deduplication, all document sections and authenticated PDF verified");
         await page.getByTestId("button-upload-pdf").click();
         await page.getByTestId("input-title").fill("Browser synthetic PDF");
         await page.getByTestId("input-year").fill("2026");

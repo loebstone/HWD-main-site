@@ -487,7 +487,7 @@ export const listAuditLogQueryPersonIdMax = 100;
 export const ListAuditLogQueryParams = zod.object({
   "page": zod.coerce.number().int().min(1).default(listAuditLogQueryPageDefault),
   "personId": zod.coerce.string().max(listAuditLogQueryPersonIdMax).optional(),
-  "action": zod.enum(['sign-in', 'sign-out', 'document-open', 'document-upload', 'document-replace', 'document-retire', 'grant-create', 'grant-end', 'announcement-create', 'announcement-edit', 'announcement-retire', 'notice-edit', 'apps-edit']).optional()
+  "action": zod.enum(['sign-in', 'sign-out', 'document-open', 'document-upload', 'document-replace', 'document-retire', 'grant-create', 'grant-end', 'announcement-create', 'announcement-edit', 'announcement-retire', 'notice-edit', 'apps-edit', 'import']).optional()
 })
 
 export const ListAuditLogResponse = zod.object({
@@ -496,7 +496,7 @@ export const ListAuditLogResponse = zod.object({
   "at": zod.coerce.date(),
   "actorPersonId": zod.string(),
   "actorName": zod.string(),
-  "action": zod.enum(['sign-in', 'sign-out', 'document-open', 'document-upload', 'document-replace', 'document-retire', 'grant-create', 'grant-end', 'announcement-create', 'announcement-edit', 'announcement-retire', 'notice-edit', 'apps-edit']),
+  "action": zod.enum(['sign-in', 'sign-out', 'document-open', 'document-upload', 'document-replace', 'document-retire', 'grant-create', 'grant-end', 'announcement-create', 'announcement-edit', 'announcement-retire', 'notice-edit', 'apps-edit', 'import']),
   "targetId": zod.string().nullable(),
   "description": zod.string(),
   "visitorAddress": zod.string()
@@ -548,6 +548,54 @@ export const EndGrantParams = zod.object({
 
 export const EndGrantResponse = zod.object({
   "message": zod.string()
+})
+
+
+export const GetOldSiteImportResponse = zod.object({
+  "id": zod.string(),
+  "dryRun": zod.boolean(),
+  "status": zod.enum(['running', 'completed', 'failed', 'interrupted']),
+  "startedAt": zod.string(),
+  "updatedAt": zod.string(),
+  "finishedAt": zod.string().nullable(),
+  "actorPersonId": zod.string(),
+  "actorName": zod.string(),
+  "totalRows": zod.number().int(),
+  "rows": zod.array(zod.object({
+  "sheetId": zod.string(),
+  "title": zod.string(),
+  "section": zod.string(),
+  "result": zod.enum(['would import', 'imported', 'already imported', 'skipped', 'failed']),
+  "reason": zod.string()
+})),
+  "error": zod.string().nullable(),
+  "sourceHash": zod.string().nullable()
+})
+
+
+export const StartOldSiteImportBody = zod.object({
+  "dryRun": zod.boolean()
+})
+
+export const StartOldSiteImportResponse = zod.object({
+  "id": zod.string(),
+  "dryRun": zod.boolean(),
+  "status": zod.enum(['running', 'completed', 'failed', 'interrupted']),
+  "startedAt": zod.string(),
+  "updatedAt": zod.string(),
+  "finishedAt": zod.string().nullable(),
+  "actorPersonId": zod.string(),
+  "actorName": zod.string(),
+  "totalRows": zod.number().int(),
+  "rows": zod.array(zod.object({
+  "sheetId": zod.string(),
+  "title": zod.string(),
+  "section": zod.string(),
+  "result": zod.enum(['would import', 'imported', 'already imported', 'skipped', 'failed']),
+  "reason": zod.string()
+})),
+  "error": zod.string().nullable(),
+  "sourceHash": zod.string().nullable()
 })
 
 

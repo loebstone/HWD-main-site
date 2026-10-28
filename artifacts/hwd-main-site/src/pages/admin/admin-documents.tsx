@@ -5,6 +5,8 @@ import { PageHeader } from "@/components/page-header";
 import { AdminTabs } from "@/components/admin/admin-tabs";
 import { DocumentFormDialog, type FormMode } from "@/components/admin/document-form-dialog";
 import { RetireDialog } from "@/components/admin/retire-dialog";
+import { OldSiteImportPanel } from "@/components/admin/old-site-import";
+import { useSession } from "@/lib/session";
 import { EmptyState, ErrorState, ListSkeleton } from "@/components/states";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,6 +15,7 @@ import { Label } from "@/components/ui/label";
 import { SECTION_LABELS, formatDate, matches, openUrl, sortDocs } from "@/lib/docs";
 
 export default function AdminDocumentsPage() {
+  const { data: me } = useSession();
   const [includeRetired, setIncludeRetired] = useState(false);
   const q = useListDocuments({ includeRetired });
   const [search, setSearch] = useState("");
@@ -30,6 +33,7 @@ export default function AdminDocumentsPage() {
         </div>
       </PageHeader>
       <AdminTabs />
+      {me?.role === "admin" && <OldSiteImportPanel />}
       <div className="flex flex-col sm:flex-row sm:items-center gap-4 mb-6">
         <div className="relative flex-1 max-w-md">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />

@@ -3,6 +3,7 @@ import { sql } from "drizzle-orm";
 
 export const documents = pgTable("site_documents", {
   id: uuid("id").primaryKey().defaultRandom(),
+  legacySheetId: text("legacy_sheet_id").unique(),
   title: text("title").notNull(),
   section: text("section", { enum: ["shareholders", "directors", "governing", "logging", "photo_archive"] }).notNull(),
   year: integer("year"),

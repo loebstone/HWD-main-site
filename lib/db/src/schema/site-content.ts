@@ -4,6 +4,7 @@ const instant = (name: string) => timestamp(name, { withTimezone: true });
 
 export const announcements = pgTable("site_announcements", {
   id: uuid("id").primaryKey().defaultRandom(),
+  legacySheetId: text("legacy_sheet_id").unique(),
   title: text("title").notNull(),
   body: text("body").notNull(),
   date: date("announcement_date", { mode: "string" }).notNull(),
