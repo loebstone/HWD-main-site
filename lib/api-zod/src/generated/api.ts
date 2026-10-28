@@ -8,6 +8,179 @@
 import * as zod from 'zod';
 
 
+export const getSuiteMenuResponseItemsItemLabelMax = 100;
+
+export const getSuiteMenuResponseItemsItemHrefMax = 2048;
+
+export const getSuiteMenuResponseItemsItemOrderMin = 0;
+export const getSuiteMenuResponseItemsItemOrderMax = 100;
+
+export const getSuiteMenuResponseToolsItemLabelMax = 100;
+
+export const getSuiteMenuResponseToolsItemHrefMax = 2048;
+
+
+
+export const GetSuiteMenuResponse = zod.object({
+  "version": zod.number().int(),
+  "logoSvg": zod.string(),
+  "items": zod.array(zod.object({
+  "id": zod.string(),
+  "label": zod.string().min(1).max(getSuiteMenuResponseItemsItemLabelMax),
+  "href": zod.string().url().max(getSuiteMenuResponseItemsItemHrefMax),
+  "order": zod.number().int().min(getSuiteMenuResponseItemsItemOrderMin).max(getSuiteMenuResponseItemsItemOrderMax)
+})),
+  "tools": zod.array(zod.object({
+  "id": zod.string(),
+  "label": zod.string().min(1).max(getSuiteMenuResponseToolsItemLabelMax),
+  "href": zod.string().url().max(getSuiteMenuResponseToolsItemHrefMax)
+})),
+  "signOutHref": zod.string().url()
+})
+
+
+export const getAdminSuiteMenuResponseItemsItemLabelMax = 100;
+
+export const getAdminSuiteMenuResponseItemsItemHrefMax = 2048;
+
+export const getAdminSuiteMenuResponseItemsItemOrderMin = 0;
+export const getAdminSuiteMenuResponseItemsItemOrderMax = 100;
+
+export const getAdminSuiteMenuResponseToolsItemLabelMax = 100;
+
+export const getAdminSuiteMenuResponseToolsItemHrefMax = 2048;
+
+
+
+export const GetAdminSuiteMenuResponse = zod.object({
+  "version": zod.number().int(),
+  "logoSvg": zod.string(),
+  "items": zod.array(zod.object({
+  "id": zod.string(),
+  "label": zod.string().min(1).max(getAdminSuiteMenuResponseItemsItemLabelMax),
+  "href": zod.string().url().max(getAdminSuiteMenuResponseItemsItemHrefMax),
+  "order": zod.number().int().min(getAdminSuiteMenuResponseItemsItemOrderMin).max(getAdminSuiteMenuResponseItemsItemOrderMax)
+})),
+  "tools": zod.array(zod.object({
+  "id": zod.string(),
+  "label": zod.string().min(1).max(getAdminSuiteMenuResponseToolsItemLabelMax),
+  "href": zod.string().url().max(getAdminSuiteMenuResponseToolsItemHrefMax)
+})),
+  "signOutHref": zod.string().url()
+})
+
+
+export const updateSuiteMenuBodyItemsItemLabelMax = 100;
+
+export const updateSuiteMenuBodyItemsItemHrefMax = 2048;
+
+export const updateSuiteMenuBodyItemsItemOrderMin = 0;
+export const updateSuiteMenuBodyItemsItemOrderMax = 100;
+
+export const updateSuiteMenuBodyItemsMin = 6;
+export const updateSuiteMenuBodyItemsMax = 6;
+
+export const updateSuiteMenuBodyToolsItemLabelMax = 100;
+
+export const updateSuiteMenuBodyToolsItemHrefMax = 2048;
+
+export const updateSuiteMenuBodyToolsMin = 2;
+export const updateSuiteMenuBodyToolsMax = 2;
+
+
+
+export const UpdateSuiteMenuBody = zod.object({
+  "items": zod.array(zod.object({
+  "id": zod.string(),
+  "label": zod.string().min(1).max(updateSuiteMenuBodyItemsItemLabelMax),
+  "href": zod.string().url().max(updateSuiteMenuBodyItemsItemHrefMax),
+  "order": zod.number().int().min(updateSuiteMenuBodyItemsItemOrderMin).max(updateSuiteMenuBodyItemsItemOrderMax)
+})).min(updateSuiteMenuBodyItemsMin).max(updateSuiteMenuBodyItemsMax),
+  "tools": zod.array(zod.object({
+  "id": zod.string(),
+  "label": zod.string().min(1).max(updateSuiteMenuBodyToolsItemLabelMax),
+  "href": zod.string().url().max(updateSuiteMenuBodyToolsItemHrefMax)
+})).min(updateSuiteMenuBodyToolsMin).max(updateSuiteMenuBodyToolsMax)
+})
+
+export const updateSuiteMenuResponseItemsItemLabelMax = 100;
+
+export const updateSuiteMenuResponseItemsItemHrefMax = 2048;
+
+export const updateSuiteMenuResponseItemsItemOrderMin = 0;
+export const updateSuiteMenuResponseItemsItemOrderMax = 100;
+
+export const updateSuiteMenuResponseToolsItemLabelMax = 100;
+
+export const updateSuiteMenuResponseToolsItemHrefMax = 2048;
+
+
+
+export const UpdateSuiteMenuResponse = zod.object({
+  "version": zod.number().int(),
+  "logoSvg": zod.string(),
+  "items": zod.array(zod.object({
+  "id": zod.string(),
+  "label": zod.string().min(1).max(updateSuiteMenuResponseItemsItemLabelMax),
+  "href": zod.string().url().max(updateSuiteMenuResponseItemsItemHrefMax),
+  "order": zod.number().int().min(updateSuiteMenuResponseItemsItemOrderMin).max(updateSuiteMenuResponseItemsItemOrderMax)
+})),
+  "tools": zod.array(zod.object({
+  "id": zod.string(),
+  "label": zod.string().min(1).max(updateSuiteMenuResponseToolsItemLabelMax),
+  "href": zod.string().url().max(updateSuiteMenuResponseToolsItemHrefMax)
+})),
+  "signOutHref": zod.string().url()
+})
+
+
+export const GetContactStatusResponse = zod.object({
+  "configured": zod.boolean()
+})
+
+
+export const sendContactBodySubjectMax = 200;
+
+export const sendContactBodyMessageMax = 5000;
+
+
+
+export const SendContactBody = zod.object({
+  "subject": zod.string().min(1).max(sendContactBodySubjectMax),
+  "message": zod.string().min(1).max(sendContactBodyMessageMax)
+})
+
+export const SendContactResponse = zod.object({
+  "message": zod.string()
+})
+
+
+export const getAdminContactResponseRecipientMax = 320;
+
+
+
+export const GetAdminContactResponse = zod.object({
+  "recipient": zod.string().max(getAdminContactResponseRecipientMax).describe('Empty string disables Contact')
+})
+
+
+export const updateContactSettingsBodyRecipientMax = 320;
+
+
+
+export const UpdateContactSettingsBody = zod.object({
+  "recipient": zod.string().max(updateContactSettingsBodyRecipientMax).describe('Empty string disables Contact')
+})
+
+export const updateContactSettingsResponseRecipientMax = 320;
+
+
+
+export const UpdateContactSettingsResponse = zod.object({
+  "recipient": zod.string().max(updateContactSettingsResponseRecipientMax).describe('Empty string disables Contact')
+})
+
+
 export const GetRosterEntryQueryParams = zod.object({
   "to": zod.coerce.string().optional()
 })
@@ -65,7 +238,8 @@ export const VerifySignInResponse = zod.object({
   "personId": zod.string(),
   "displayName": zod.string(),
   "goesBy": zod.string().nullable(),
-  "role": zod.enum(['member', 'editor', 'admin'])
+  "role": zod.enum(['member', 'editor', 'admin']),
+  "apps": zod.array(zod.string()).nullish().describe('Null or absent means legacy session; empty array is an explicit lack of tool access')
 })
 
 
@@ -73,7 +247,8 @@ export const GetSessionResponse = zod.object({
   "personId": zod.string(),
   "displayName": zod.string(),
   "goesBy": zod.string().nullable(),
-  "role": zod.enum(['member', 'editor', 'admin'])
+  "role": zod.enum(['member', 'editor', 'admin']),
+  "apps": zod.array(zod.string()).nullish().describe('Null or absent means legacy session; empty array is an explicit lack of tool access')
 })
 
 
@@ -713,7 +888,7 @@ export const listAuditLogQueryPersonIdMax = 100;
 export const ListAuditLogQueryParams = zod.object({
   "page": zod.coerce.number().int().min(1).default(listAuditLogQueryPageDefault),
   "personId": zod.coerce.string().max(listAuditLogQueryPersonIdMax).optional(),
-  "action": zod.enum(['sign-in', 'sign-out', 'document-open', 'document-upload', 'document-replace', 'document-retire', 'document-edit', 'document-move', 'group-create', 'group-edit', 'group-retire', 'home-edit', 'grant-create', 'grant-end', 'announcement-create', 'announcement-edit', 'announcement-retire', 'notice-edit', 'apps-edit', 'import']).optional()
+  "action": zod.enum(['sign-in', 'sign-out', 'document-open', 'document-upload', 'document-replace', 'document-retire', 'document-edit', 'document-move', 'group-create', 'group-edit', 'group-retire', 'home-edit', 'grant-create', 'grant-end', 'announcement-create', 'announcement-edit', 'announcement-retire', 'notice-edit', 'apps-edit', 'menu-edit', 'contact-send', 'contact-settings-edit', 'import']).optional()
 })
 
 export const ListAuditLogResponse = zod.object({
@@ -722,7 +897,7 @@ export const ListAuditLogResponse = zod.object({
   "at": zod.coerce.date(),
   "actorPersonId": zod.string(),
   "actorName": zod.string(),
-  "action": zod.enum(['sign-in', 'sign-out', 'document-open', 'document-upload', 'document-replace', 'document-retire', 'document-edit', 'document-move', 'group-create', 'group-edit', 'group-retire', 'home-edit', 'grant-create', 'grant-end', 'announcement-create', 'announcement-edit', 'announcement-retire', 'notice-edit', 'apps-edit', 'import']),
+  "action": zod.enum(['sign-in', 'sign-out', 'document-open', 'document-upload', 'document-replace', 'document-retire', 'document-edit', 'document-move', 'group-create', 'group-edit', 'group-retire', 'home-edit', 'grant-create', 'grant-end', 'announcement-create', 'announcement-edit', 'announcement-retire', 'notice-edit', 'apps-edit', 'menu-edit', 'contact-send', 'contact-settings-edit', 'import']),
   "targetId": zod.string().nullable(),
   "description": zod.string(),
   "visitorAddress": zod.string()

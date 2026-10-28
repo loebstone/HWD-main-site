@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { Logo } from "@/components/logo";
 
 export function AuthFrame({ children }: { children: ReactNode }) {
   const img = `${import.meta.env.BASE_URL}images/hwd-farm-illustration.jpg`;
@@ -13,7 +14,7 @@ export function AuthFrame({ children }: { children: ReactNode }) {
         <img src={img} alt="" className="lg:hidden h-44 w-full object-cover border-b" />
         <div className="flex-1 grid place-items-center px-6 py-10">
           <div className="w-full max-w-sm rise">
-            <p className="font-display text-xl text-primary mb-8 lg:mb-12">HWD Farm</p>
+            <div className="mb-8 lg:mb-12" data-testid="logo-auth"><Logo large /></div>
             {children}
           </div>
         </div>

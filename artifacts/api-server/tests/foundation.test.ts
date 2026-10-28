@@ -132,6 +132,7 @@ test("HWD foundation: isolated development security suite", async (t) => {
   const services: Services = {
     db: testDb, roster: checkRoster, redeemTicket: redeemRosterTicket, now: () => new Date(time),
     email: async (email, link) => { await sendSignInLink(email, link); captured.push(link); },
+    contactEmail: async () => { throw new Error("Contact is not used in the foundation fixture"); },
     storage: {
       async save(bytes) { const id = randomUUID(); files.set(id, bytes); return id; },
       async read(key) { assert(files.has(key)); return Readable.from(files.get(key)!); },
@@ -233,15 +234,17 @@ test("HWD foundation: isolated development security suite", async (t) => {
         // Roster role, not rosterAdmin or a conflicting local grant, controls SSO.
         const personId = role === "member" ? "synthetic-admin" : `synthetic-sso-${role}`;
         tickets.set(ticket, { personId, displayName: "Synthetic SSO Person", goes_by: "SSO", email: role === "member" ? "admin@example.invalid" : `sso-${role}@example.invalid`,
-          rosterAdmin: false, role, authenticated_at: "2026-10-28T11:59:00.000Z" });
+          rosterAdmin: false, role, authenticated_at: "2026-10-28T11:59:00.000Z", apps: role === "member" ? ["forecast"] : [], grants: [] });
         const signed = await request(app).get("/auth/sso").query({ ticket, to: "/meetings?year=2026" }).set("X-Forwarded-For", ip()).expect(303);
         assert.equal(signed.headers.location, "/meetings?year=2026");
         const cookie = signed.headers["set-cookie"][0].split(";")[0];
         const identity = await request(app).get("/api/auth/session").set("Cookie", cookie).expect(200);
         assert.equal(identity.body.role, role);
+        assert.deepEqual(identity.body.apps, role === "member" ? ["forecast"] : []);
         const [stored] = await testDb.select().from(sessions).where(eq(sessions.hash, hashToken(cookie.split("=")[1]!)));
         assert.equal(stored!.signInMethod, "roster");
         assert.equal(stored!.rosterRole, role);
+        assert.deepEqual(stored!.rosterApps, role === "member" ? ["forecast"] : []);
         assert.equal(stored!.authenticatedAt!.toISOString(), "2026-10-28T11:59:00.000Z");
         assert.equal(stored!.expiresAt.getTime() - time.getTime(), 30 * DAY);
         assert.match(signed.headers["set-cookie"][0], /HttpOnly/);
@@ -902,9 +905,9 @@ test("HWD foundation: isolated development security suite", async (t) => {
         await page.goto(`${origin}/`);
         await page.getByTestId("link-nav-documents").waitFor();
         await page.waitForFunction(() =>
-          document.querySelector('[data-testid="link-nav-calendar"]')?.getAttribute("href") === "https://calendar.hwdfarm.com",
+          document.querySelector('[data-testid="link-nav-scheduler"]')?.getAttribute("href") === "https://calendar.hwdfarm.com",
         );
-        assert.equal(await page.getByTestId("link-nav-calendar").getAttribute("href"), "https://calendar.hwdfarm.com");
+        assert.equal(await page.getByTestId("link-nav-scheduler").getAttribute("href"), "https://calendar.hwdfarm.com");
         await page.screenshot({ path: "../../generated-artifacts/hwd-home-desktop.jpg", fullPage: true });
         console.info("Browser: upload, metadata edit, replacement, meeting document and note all visible");
         await page.goto(`${origin}/admin/announcements`);
@@ -958,7 +961,7 @@ test("HWD foundation: isolated development security suite", async (t) => {
         console.info("Browser: Admin Announcements, Home notice, Apps, People and Audit pages loaded; forms exercised");
         await page.setViewportSize({ width: 390, height: 844 });
         await page.getByTestId("button-menu").click();
-        await page.getByTestId("link-nav-documents").filter({ visible: true }).click();
+        await page.getByTestId("link-nav-documents-mobile").click();
         await page.getByRole("heading", { name: "Documents", exact: true }).waitFor();
         const overflow = await page.evaluate(() => document.documentElement.scrollWidth > innerWidth);
         assert.equal(overflow, false, "Phone layout must not overflow");

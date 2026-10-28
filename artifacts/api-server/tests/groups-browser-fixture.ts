@@ -15,6 +15,8 @@ import { DEFAULT_GROUPS, migrateDocumentGroups } from "../src/migrate-document-g
 import type { Services } from "../src/lib/services";
 
 if (process.env.NODE_ENV === "production") throw new Error("Browser fixtures are development-only");
+process.env.NODE_ENV = "development";
+process.env.APP_ORIGIN = `https://${process.env.REPLIT_DEV_DOMAIN}`;
 const host = new URL(process.env.DATABASE_URL!).hostname;
 console.info("Browser fixture environment: development; configured database host before query:", host);
 const schemaName = `hwd_group_browser_${randomUUID().replace(/-/g, "")}`;
@@ -32,12 +34,13 @@ await installDatabaseProtections(fixturePool);
 await migrateDocumentGroups(fixturePool);
 const now = new Date();
 const cookies: Record<string, string> = {};
-for (const role of ["admin", "member"] as const) {
+for (const role of ["admin", "member", "editor"] as const) {
   const raw = newToken();
   cookies[role] = `site_session=${raw}`;
   await fixtureDb.insert(sessions).values({
     hash: hashToken(raw), personId: `synthetic-group-browser-${role}`, displayName: `Synthetic, ${role === "admin" ? "Morgan" : "Alex"}`,
     goesBy: role === "admin" ? "Morgan" : null, email: `${role}@example.invalid`, signInMethod: "roster", rosterRole: role,
+    rosterApps: role === "member" ? ["forecast"] : role === "editor" ? [] : null,
     authenticatedAt: now, createdAt: now, expiresAt: new Date(now.getTime() + 30 * 86400000),
     lastRenewedAt: now, lastRosterCheckAt: now, lastRosterSuccessAt: now,
   });

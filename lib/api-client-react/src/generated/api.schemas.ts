@@ -95,6 +95,84 @@ export interface Identity {
   /** @nullable */
   goesBy: string | null;
   role: IdentityRole;
+  /**
+     * Null or absent means legacy session; empty array is an explicit lack of tool access
+     * @nullable
+     */
+  apps?: string[] | null;
+}
+
+export interface SuiteItem {
+  id: string;
+  /**
+     * @minLength 1
+     * @maxLength 100
+     */
+  label: string;
+  /** @maxLength 2048 */
+  href: string;
+  /**
+     * @minimum 0
+     * @maximum 100
+     */
+  order: number;
+}
+
+export interface SuiteTool {
+  id: string;
+  /**
+     * @minLength 1
+     * @maxLength 100
+     */
+  label: string;
+  /** @maxLength 2048 */
+  href: string;
+}
+
+export interface SuiteMenuInput {
+  /**
+     * @minItems 6
+     * @maxItems 6
+     */
+  items: SuiteItem[];
+  /**
+     * @minItems 2
+     * @maxItems 2
+     */
+  tools: SuiteTool[];
+}
+
+export interface SuiteMenu {
+  version: number;
+  logoSvg: string;
+  items: SuiteItem[];
+  tools: SuiteTool[];
+  signOutHref: string;
+}
+
+export interface ContactInput {
+  /**
+     * @minLength 1
+     * @maxLength 200
+     */
+  subject: string;
+  /**
+     * @minLength 1
+     * @maxLength 5000
+     */
+  message: string;
+}
+
+export interface ContactSettings {
+  /**
+     * Empty string disables Contact
+     * @maxLength 320
+     */
+  recipient: string;
+}
+
+export interface ContactStatus {
+  configured: boolean;
 }
 
 export type Section = typeof Section[keyof typeof Section];
@@ -461,6 +539,9 @@ export const AuditAction = {
   'announcement-retire': 'announcement-retire',
   'notice-edit': 'notice-edit',
   'apps-edit': 'apps-edit',
+  'menu-edit': 'menu-edit',
+  'contact-send': 'contact-send',
+  'contact-settings-edit': 'contact-settings-edit',
   import: 'import',
 } as const;
 

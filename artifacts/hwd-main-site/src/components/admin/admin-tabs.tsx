@@ -7,7 +7,8 @@ const TABS = [
   { href: "/admin/announcements", label: "Announcements" },
   { href: "/admin/home-notice", label: "Home notice" },
   { href: "/admin/home", label: "Home" },
-  { href: "/admin/apps", label: "Apps" },
+  { href: "/admin/suite-menu", label: "Suite menu" },
+  { href: "/admin/contact", label: "Contact" },
   { href: "/admin/people", label: "People & Access" },
   { href: "/admin/audit", label: "Audit log" },
 ];

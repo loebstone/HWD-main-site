@@ -5,6 +5,8 @@ const rosterResponse = z.discriminatedUnion("allowed", [
   z.object({
     allowed: z.literal(true), personId: z.union([z.string().min(1), z.number().int()]).transform(String),
     displayName: z.string().min(1), goes_by: z.string().nullable(),
+    apps: z.array(z.string().min(1).max(100)).max(100).optional(),
+    grants: z.unknown().optional(),
   }),
 ]);
 export type RosterAnswer = z.infer<typeof rosterResponse>;
@@ -16,6 +18,8 @@ const redeemedIdentity = z.object({
   email: z.string().email(), rosterAdmin: z.boolean(),
   role: z.enum(["member", "editor", "admin"]),
   authenticated_at: z.string().datetime({ offset: true }),
+  apps: z.array(z.string().min(1).max(100)).max(100).optional(),
+  grants: z.unknown().optional(),
 });
 export type RedeemedIdentity = z.infer<typeof redeemedIdentity>;
 export async function redeemRosterTicket(ticket: string): Promise<RedeemedIdentity | null> {

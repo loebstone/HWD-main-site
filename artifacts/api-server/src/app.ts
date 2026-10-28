@@ -23,6 +23,9 @@ import { getAppLinks, getHomeNotice, listAnnouncements } from "./lib/site-conten
 import { adminGroupRoutes, groupRoutes, homeGroupSettingsRoutes } from "./routes/document-groups";
 import { getFeaturedGroupIds, GroupError, legacyGroupLocation, listGroups, visibleDocumentFilter } from "./lib/document-groups";
 import { and } from "drizzle-orm";
+import { adminSuiteMenuRoutes, publicSuiteMenuRoutes } from "./routes/suite-menu";
+import { adminContactRoutes, contactRoutes } from "./routes/contact";
+import { toolAllowed } from "./lib/suite-menu";
 
 export function createApp(services: Partial<Services> = {}): Express {
   const s = { ...defaultServices, ...services };
@@ -39,6 +42,9 @@ export function createApp(services: Partial<Services> = {}): Express {
   } }));
   app.use((_req, res, next) => { res.setHeader("Cache-Control", "no-store"); next(); });
   app.use(cookieParser());
+  // Public, identity-free navigation. Method/CORS gate precedes body parsing,
+  // CSRF and sessions; it never sets a session cookie.
+  app.use("/api/suite/menu", publicSuiteMenuRoutes(s));
   app.use(express.json({ limit: "64kb" }));
   app.use(csrf());
   app.get("/api/healthz", (_req, res) => { res.json({ status: "ok", build: BUILD_ID }); });
@@ -54,6 +60,9 @@ export function createApp(services: Partial<Services> = {}): Express {
   // All remaining API routes fail closed before route lookup or file access.
   app.use("/api", requireSession(s));
   app.use("/api/apps", appLinkRoutes(s));
+  app.use("/api/contact", contactRoutes(s));
+  app.use("/api/admin/contact", adminContactRoutes(s));
+  app.use("/api/admin/suite-menu", adminSuiteMenuRoutes(s));
   app.use("/api/announcements", announcementRoutes(s));
   app.use("/api/documents", documentRoutes(s));
   app.use("/api/groups", groupRoutes(s));
@@ -73,8 +82,8 @@ export function createApp(services: Partial<Services> = {}): Express {
     const [notice, reminders, allApps] = await Promise.all([
       getHomeNotice(s), listAnnouncements(s, { placement: "reminders" }), getAppLinks(s),
     ]);
-    const apps = req.siteIdentity?.role === "admin" ? allApps
-      : allApps.filter(app => app.id === "calendar" || app.id === "roster");
+    const apps = allApps.filter(app => app.id === "calendar" || app.id === "roster"
+      || toolAllowed(req.siteIdentity!, app.id === "cap-table" ? "captable" : app.id));
     res.json({ documentCount: count?.value ?? 0, recentDocuments: recent.map(publicDocument),
       notice, reminders: reminders.slice(0, 5), apps, featuredGroups });
   });

@@ -16,9 +16,11 @@ import DocumentsPage from "@/pages/documents";
 import DocumentGroupPage from "@/pages/document-group";
 import { MeetingsRedirect, ShareholdersRedirect, DirectorsRedirect, LoggingRedirect, GoverningRedirect, PhotoArchiveRedirect } from "@/pages/legacy-redirect";
 import { AdminHomePage } from "@/pages/admin/admin-home";
+import ContactPage from "@/pages/contact";
+import { AdminContactPage, AdminSuiteMenuPage } from "@/pages/admin/admin-suite";
 import AnnouncementsPage from "@/pages/announcements";
 import AdminDocumentsPage from "@/pages/admin/admin-documents";
-import { AdminAnnouncementsPage, AdminAppsPage, AdminAuditPage, AdminHomeNoticePage, AdminPeoplePage } from "@/pages/admin/admin-features";
+import { AdminAnnouncementsPage, AdminAuditPage, AdminHomeNoticePage, AdminPeoplePage } from "@/pages/admin/admin-features";
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { refetchOnWindowFocus: false } },
@@ -48,12 +50,15 @@ function PrivateRoutes() {
             <Route path="/governing" component={GoverningRedirect} />
             <Route path="/photo-archive" component={PhotoArchiveRedirect} />
             <Route path="/announcements" component={AnnouncementsPage} />
+            <Route path="/contact" component={ContactPage} />
             <Route path="/admin"><Redirect to="/admin/documents" /></Route>
             <Route path="/admin/documents" component={admin(AdminDocumentsPage)} />
             <Route path="/admin/announcements" component={admin(AdminAnnouncementsPage)} />
             <Route path="/admin/home-notice" component={admin(AdminHomeNoticePage)} />
             <Route path="/admin/home" component={adminOnly(AdminHomePage)} />
-            <Route path="/admin/apps" component={adminOnly(AdminAppsPage)} />
+            <Route path="/admin/apps"><Redirect to="/admin/suite-menu" /></Route>
+            <Route path="/admin/suite-menu" component={adminOnly(AdminSuiteMenuPage)} />
+            <Route path="/admin/contact" component={adminOnly(AdminContactPage)} />
             <Route path="/admin/people" component={adminOnly(AdminPeoplePage)} />
             <Route path="/admin/audit" component={adminOnly(AdminAuditPage)} />
             <Route component={NotFound} />

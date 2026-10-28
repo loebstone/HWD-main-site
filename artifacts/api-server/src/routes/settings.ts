@@ -6,6 +6,7 @@ import { audit } from "../lib/audit";
 import { defaultAppLinks, defaultHomeNotice, getAppLinks, getHomeNotice, appLinksSchema, homeNoticeSchema } from "../lib/site-content";
 import { requireAdmin, requireEditor, visitorAddress } from "../middlewares/security";
 import type { Services } from "../lib/services";
+import { toolAllowed } from "../lib/suite-menu";
 
 const PUBLIC_APP_IDS = new Set(["calendar", "roster"]);
 
@@ -23,7 +24,8 @@ export function appLinkRoutes(s: Services) {
   const router = Router();
   router.get("/", async (req, res): Promise<void> => {
     const apps = await getAppLinks(s);
-    res.json(req.siteIdentity?.role === "admin" ? apps : apps.filter(app => PUBLIC_APP_IDS.has(app.id)));
+    res.json(apps.filter(app => PUBLIC_APP_IDS.has(app.id) || toolAllowed(req.siteIdentity!,
+      app.id === "cap-table" ? "captable" : app.id)));
   });
   return router;
 }

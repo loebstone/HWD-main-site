@@ -6,6 +6,83 @@ info:
 servers:
   - url: /api
 paths:
+  /suite/menu:
+    get:
+      operationId: getSuiteMenu
+      responses:
+        "200":
+          description: Public navigation only; public max-age 300; restricted GET CORS
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SuiteMenu" }
+  /admin/suite-menu:
+    get:
+      operationId: getAdminSuiteMenu
+      responses:
+        "200":
+          description: Admin menu settings
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SuiteMenu" }
+    put:
+      operationId: updateSuiteMenu
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SuiteMenuInput" }
+      responses:
+        "200":
+          description: Saved menu
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SuiteMenu" }
+  /contact:
+    get:
+      operationId: getContactStatus
+      responses:
+        "200":
+          description: Availability only; never discloses recipient
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ContactStatus" }
+    post:
+      operationId: sendContact
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ContactInput" }
+      responses:
+        "200":
+          description: Sent (logged only in development)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Message" }
+        "409": { description: Contact not configured }
+        "429": { description: Daily limit reached }
+  /admin/contact:
+    get:
+      operationId: getAdminContact
+      responses:
+        "200":
+          description: Admin-only recipient
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ContactSettings" }
+    put:
+      operationId: updateContactSettings
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ContactSettings" }
+      responses:
+        "200":
+          description: Saved recipient
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ContactSettings" }
   /auth/roster-entry:
     get:
       operationId: getRosterEntry
@@ -558,6 +635,56 @@ components:
         displayName: { type: string }
         goesBy: { type: ["string", "null"] }
         role: { type: string, enum: [member, editor, admin] }
+        apps:
+          type: [array, "null"]
+          items: { type: string }
+          description: Null or absent means legacy session; empty array is an explicit lack of tool access
+    SuiteItem:
+      type: object
+      required: [id, label, href, order]
+      properties:
+        id: { type: string }
+        label: { type: string, minLength: 1, maxLength: 100 }
+        href: { type: string, format: uri, maxLength: 2048 }
+        order: { type: integer, minimum: 0, maximum: 100 }
+    SuiteTool:
+      type: object
+      required: [id, label, href]
+      properties:
+        id: { type: string }
+        label: { type: string, minLength: 1, maxLength: 100 }
+        href: { type: string, format: uri, maxLength: 2048 }
+    SuiteMenuInput:
+      type: object
+      required: [items, tools]
+      properties:
+        items: { type: array, minItems: 6, maxItems: 6, items: { $ref: "#/components/schemas/SuiteItem" } }
+        tools: { type: array, minItems: 2, maxItems: 2, items: { $ref: "#/components/schemas/SuiteTool" } }
+    SuiteMenu:
+      type: object
+      required: [version, logoSvg, items, tools, signOutHref]
+      properties:
+        version: { type: integer }
+        logoSvg: { type: string }
+        items: { type: array, items: { $ref: "#/components/schemas/SuiteItem" } }
+        tools: { type: array, items: { $ref: "#/components/schemas/SuiteTool" } }
+        signOutHref: { type: string, format: uri }
+    ContactInput:
+      type: object
+      required: [subject, message]
+      properties:
+        subject: { type: string, minLength: 1, maxLength: 200 }
+        message: { type: string, minLength: 1, maxLength: 5000 }
+    ContactSettings:
+      type: object
+      required: [recipient]
+      properties:
+        recipient: { type: string, maxLength: 320, description: Empty string disables Contact }
+    ContactStatus:
+      type: object
+      required: [configured]
+      properties:
+        configured: { type: boolean }
     Section:
       type: string
       enum: [shareholders, directors, governing, logging, photo_archive]
@@ -732,7 +859,7 @@ components:
         hideAfter: { type: string, format: date }
     AuditAction:
       type: string
-      enum: [sign-in, sign-out, document-open, document-upload, document-replace, document-retire, document-edit, document-move, group-create, group-edit, group-retire, home-edit, grant-create, grant-end, announcement-create, announcement-edit, announcement-retire, notice-edit, apps-edit, import]
+      enum: [sign-in, sign-out, document-open, document-upload, document-replace, document-retire, document-edit, document-move, group-create, group-edit, group-retire, home-edit, grant-create, grant-end, announcement-create, announcement-edit, announcement-retire, notice-edit, apps-edit, menu-edit, contact-send, contact-settings-edit, import]
     AuditEntry:
       type: object
       required: [id, at, actorPersonId, actorName, action, targetId, description, visitorAddress]

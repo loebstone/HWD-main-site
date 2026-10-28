@@ -8,7 +8,7 @@
     "build": "node ./build.mjs",
     "start": "node --enable-source-maps ./dist/index.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "tsx --test tests/foundation.test.ts",
+    "test": "tsx --test tests/*.test.ts",
     "security:dev": "RUN_SECURITY_INSTALL=dev tsx src/install-security.ts"
   },
   "dependencies": {

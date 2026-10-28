@@ -2,11 +2,11 @@ import { useEffect, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import {
-  getGetAdminAppLinksQueryKey, getGetAppLinksQueryKey, getGetHomeNoticeQueryKey, getGetPublicHomeNoticeQueryKey, getListAnnouncementsQueryKey,
+  getGetHomeNoticeQueryKey, getGetPublicHomeNoticeQueryKey, getListAnnouncementsQueryKey,
   getListGrantsQueryKey, useCreateAnnouncement, useCreateGrant, useEndGrant,
-  useGetAdminAppLinks, useGetHomeNotice, useListAnnouncements, useListAuditLog, useListGrants,
-  useRetireAnnouncement, useUpdateAnnouncement, useUpdateAppLinks, useUpdateHomeNotice,
-  type Announcement, type AnnouncementInput, type AppLink, type AuditAction, type GrantInput, type HomeNoticeInput,
+  useGetHomeNotice, useListAnnouncements, useListAuditLog, useListGrants,
+  useRetireAnnouncement, useUpdateAnnouncement, useUpdateHomeNotice,
+  type Announcement, type AnnouncementInput, type AuditAction, type GrantInput, type HomeNoticeInput,
 } from "@workspace/api-client-react";
 import { PageHeader } from "@/components/page-header";
 import { AdminTabs } from "@/components/admin/admin-tabs";
@@ -105,38 +105,6 @@ export function AdminHomeNoticePage() {
   </div>;
 }
 
-const APP_IDS = ["calendar", "roster", "forecast", "cap-table"] as const;
-const APP_NAMES: Record<(typeof APP_IDS)[number], string> = { calendar: "Calendar", roster: "Roster", forecast: "Forecast", "cap-table": "Cap table" };
-export function AdminAppsPage() {
-  const client = useQueryClient();
-  const query = useGetAdminAppLinks();
-  const mutation = useUpdateAppLinks();
-  const appForm = useForm<{ apps: AppLink[] }>({ defaultValues: { apps: [] } });
-  const [values, setValues] = useState<Record<string, AppLink>>({});
-  useEffect(() => {
-    if (query.data) {
-    const map = Object.fromEntries(query.data.map((app) => [app.id, app]));
-    setValues(Object.fromEntries(APP_IDS.map((id) => [id, map[id] || { id, label: APP_NAMES[id], url: "" }])));
-    }
-  }, [query.data]);
-  return <div>
-    <PageHeader eyebrow="Administration" title="Farm apps" intro="Manage the links family members use to reach Farm tools." />
-    <AdminTabs />
-    {query.isLoading ? <ListSkeleton rows={4} /> : query.isError ? <ErrorState onRetry={() => query.refetch()} /> :
-      <Form {...appForm}><form className="max-w-2xl space-y-4" onSubmit={(event) => { event.preventDefault(); mutation.mutate({ data: { apps: APP_IDS.map((id) => values[id]) } }, { onSuccess: () => { void client.invalidateQueries({ queryKey: getGetAdminAppLinksQueryKey() }); void client.invalidateQueries({ queryKey: getGetAppLinksQueryKey() }); } }); }} data-testid="form-app-links">
-        {APP_IDS.map((id) => <div key={id} className="rounded-xl border bg-card p-5">
-          <h2 className="text-xl">{APP_NAMES[id]}</h2>
-          <div className="mt-3 grid gap-3 sm:grid-cols-2">
-            <div className="space-y-1"><Label htmlFor={`app-label-${id}`}>Display label</Label><Input id={`app-label-${id}`} value={values[id]?.label || ""} onChange={(e) => setValues((v) => ({ ...v, [id]: { ...v[id], id, label: e.target.value } }))} data-testid={`input-app-label-${id}`} /></div>
-            <div className="space-y-1"><Label htmlFor={`app-url-${id}`}>URL</Label><Input id={`app-url-${id}`} type="url" value={values[id]?.url || ""} onChange={(e) => setValues((v) => ({ ...v, [id]: { ...v[id], id, url: e.target.value } }))} data-testid={`input-app-url-${id}`} /></div>
-          </div>
-        </div>)}
-        <Button type="submit" disabled={mutation.isPending} data-testid="button-save-app-links">{mutation.isPending ? "Saving…" : "Save app links"}</Button>
-        {mutation.isError && <p className="text-sm text-destructive" role="alert" data-testid="status-app-links-error">App links could not be saved. Please try again.</p>}
-      </form></Form>}
-  </div>;
-}
-
 export function AdminPeoplePage() {
   const client = useQueryClient();
   const { data: me } = useSession();
@@ -171,7 +139,7 @@ export function AdminPeoplePage() {
   </div>;
 }
 
-const ACTIONS: AuditAction[] = ["sign-in", "sign-out", "document-open", "document-upload", "document-replace", "document-retire", "document-edit", "document-move", "group-create", "group-edit", "group-retire", "home-edit", "grant-create", "grant-end", "announcement-create", "announcement-edit", "announcement-retire", "notice-edit", "apps-edit", "import"];
+const ACTIONS: AuditAction[] = ["sign-in", "sign-out", "document-open", "document-upload", "document-replace", "document-retire", "document-edit", "document-move", "group-create", "group-edit", "group-retire", "home-edit", "grant-create", "grant-end", "announcement-create", "announcement-edit", "announcement-retire", "notice-edit", "apps-edit", "menu-edit", "contact-send", "contact-settings-edit", "import"];
 export function AdminAuditPage() {
   const [personId, setPersonId] = useState("all");
   const [action, setAction] = useState("all");

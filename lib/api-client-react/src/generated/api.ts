@@ -31,6 +31,9 @@ import type {
   AppLinksInput,
   AuditPage,
   AuthUrl,
+  ContactInput,
+  ContactSettings,
+  ContactStatus,
   Document,
   DocumentGroup,
   DocumentInput,
@@ -56,6 +59,8 @@ import type {
   OldSiteImportRun,
   PublicNotice,
   RedeemSsoParams,
+  SuiteMenu,
+  SuiteMenuInput,
   TokenInput
 } from './api.schemas';
 
@@ -85,6 +90,632 @@ const withQueryKey = <T extends object, K>(query: T, queryKey: K): T & { queryKe
   }
   return result;
 };
+
+export const getGetSuiteMenuUrl = () => {
+
+
+
+
+  return `/api/suite/menu`
+}
+
+export const getSuiteMenu = async ( options?: Parameters<typeof customFetch>[1]): Promise<SuiteMenu> => {
+
+  return customFetch<SuiteMenu>(getGetSuiteMenuUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetSuiteMenuQueryKey = () => {
+    return [
+    `/api/suite/menu`
+    ] as const;
+    }
+
+
+export const getGetSuiteMenuQueryOptions = <TData = Awaited<ReturnType<typeof getSuiteMenu>>, TError = ErrorType<unknown>>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getSuiteMenu>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetSuiteMenuQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getSuiteMenu>>> = ({ signal }) => getSuiteMenu({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getSuiteMenu>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetSuiteMenuQueryResult = NonNullable<Awaited<ReturnType<typeof getSuiteMenu>>>
+export type GetSuiteMenuQueryError = ErrorType<unknown>
+
+
+export function useGetSuiteMenu<TData = Awaited<ReturnType<typeof getSuiteMenu>>, TError = ErrorType<unknown>>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getSuiteMenu>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getSuiteMenu>>,
+          TError,
+          Awaited<ReturnType<typeof getSuiteMenu>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetSuiteMenu<TData = Awaited<ReturnType<typeof getSuiteMenu>>, TError = ErrorType<unknown>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getSuiteMenu>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getSuiteMenu>>,
+          TError,
+          Awaited<ReturnType<typeof getSuiteMenu>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetSuiteMenu<TData = Awaited<ReturnType<typeof getSuiteMenu>>, TError = ErrorType<unknown>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getSuiteMenu>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useGetSuiteMenu<TData = Awaited<ReturnType<typeof getSuiteMenu>>, TError = ErrorType<unknown>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getSuiteMenu>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetSuiteMenuQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetAdminSuiteMenuUrl = () => {
+
+
+
+
+  return `/api/admin/suite-menu`
+}
+
+export const getAdminSuiteMenu = async ( options?: Parameters<typeof customFetch>[1]): Promise<SuiteMenu> => {
+
+  return customFetch<SuiteMenu>(getGetAdminSuiteMenuUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetAdminSuiteMenuQueryKey = () => {
+    return [
+    `/api/admin/suite-menu`
+    ] as const;
+    }
+
+
+export const getGetAdminSuiteMenuQueryOptions = <TData = Awaited<ReturnType<typeof getAdminSuiteMenu>>, TError = ErrorType<unknown>>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getAdminSuiteMenu>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetAdminSuiteMenuQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getAdminSuiteMenu>>> = ({ signal }) => getAdminSuiteMenu({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getAdminSuiteMenu>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetAdminSuiteMenuQueryResult = NonNullable<Awaited<ReturnType<typeof getAdminSuiteMenu>>>
+export type GetAdminSuiteMenuQueryError = ErrorType<unknown>
+
+
+export function useGetAdminSuiteMenu<TData = Awaited<ReturnType<typeof getAdminSuiteMenu>>, TError = ErrorType<unknown>>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getAdminSuiteMenu>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getAdminSuiteMenu>>,
+          TError,
+          Awaited<ReturnType<typeof getAdminSuiteMenu>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetAdminSuiteMenu<TData = Awaited<ReturnType<typeof getAdminSuiteMenu>>, TError = ErrorType<unknown>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getAdminSuiteMenu>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getAdminSuiteMenu>>,
+          TError,
+          Awaited<ReturnType<typeof getAdminSuiteMenu>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetAdminSuiteMenu<TData = Awaited<ReturnType<typeof getAdminSuiteMenu>>, TError = ErrorType<unknown>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getAdminSuiteMenu>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useGetAdminSuiteMenu<TData = Awaited<ReturnType<typeof getAdminSuiteMenu>>, TError = ErrorType<unknown>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getAdminSuiteMenu>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetAdminSuiteMenuQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getUpdateSuiteMenuUrl = () => {
+
+
+
+
+  return `/api/admin/suite-menu`
+}
+
+export const updateSuiteMenu = async (suiteMenuInput: SuiteMenuInput, options?: Parameters<typeof customFetch>[1]): Promise<SuiteMenu> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<SuiteMenu>(getUpdateSuiteMenuUrl(),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(suiteMenuInput)
+  }
+);}
+
+
+
+
+
+export const getUpdateSuiteMenuMutationKey = () => ['updateSuiteMenu'] as const;
+
+export const getUpdateSuiteMenuMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateSuiteMenu>>, TError,UpdateSuiteMenuMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateSuiteMenu>>, TError,UpdateSuiteMenuMutationVariables, TContext> => {
+
+const mutationKey = getUpdateSuiteMenuMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateSuiteMenu>>, UpdateSuiteMenuMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  updateSuiteMenu(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateSuiteMenuMutationResult = NonNullable<Awaited<ReturnType<typeof updateSuiteMenu>>>
+    export type UpdateSuiteMenuMutationBody = BodyType<SuiteMenuInput>
+    export type UpdateSuiteMenuMutationError = ErrorType<unknown>
+    export type UpdateSuiteMenuMutationVariables = {data: BodyType<SuiteMenuInput>}
+
+    export const useUpdateSuiteMenu = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateSuiteMenu>>, TError,UpdateSuiteMenuMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof updateSuiteMenu>>,
+        TError,
+        UpdateSuiteMenuMutationVariables,
+        TContext
+      > => {
+      return useMutation(getUpdateSuiteMenuMutationOptions(options), queryClient);
+    }
+
+export const getGetContactStatusUrl = () => {
+
+
+
+
+  return `/api/contact`
+}
+
+export const getContactStatus = async ( options?: Parameters<typeof customFetch>[1]): Promise<ContactStatus> => {
+
+  return customFetch<ContactStatus>(getGetContactStatusUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetContactStatusQueryKey = () => {
+    return [
+    `/api/contact`
+    ] as const;
+    }
+
+
+export const getGetContactStatusQueryOptions = <TData = Awaited<ReturnType<typeof getContactStatus>>, TError = ErrorType<unknown>>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getContactStatus>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetContactStatusQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getContactStatus>>> = ({ signal }) => getContactStatus({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getContactStatus>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetContactStatusQueryResult = NonNullable<Awaited<ReturnType<typeof getContactStatus>>>
+export type GetContactStatusQueryError = ErrorType<unknown>
+
+
+export function useGetContactStatus<TData = Awaited<ReturnType<typeof getContactStatus>>, TError = ErrorType<unknown>>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getContactStatus>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getContactStatus>>,
+          TError,
+          Awaited<ReturnType<typeof getContactStatus>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetContactStatus<TData = Awaited<ReturnType<typeof getContactStatus>>, TError = ErrorType<unknown>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getContactStatus>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getContactStatus>>,
+          TError,
+          Awaited<ReturnType<typeof getContactStatus>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetContactStatus<TData = Awaited<ReturnType<typeof getContactStatus>>, TError = ErrorType<unknown>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getContactStatus>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useGetContactStatus<TData = Awaited<ReturnType<typeof getContactStatus>>, TError = ErrorType<unknown>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getContactStatus>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetContactStatusQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getSendContactUrl = () => {
+
+
+
+
+  return `/api/contact`
+}
+
+export const sendContact = async (contactInput: ContactInput, options?: Parameters<typeof customFetch>[1]): Promise<Message> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<Message>(getSendContactUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(contactInput)
+  }
+);}
+
+
+
+
+
+export const getSendContactMutationKey = () => ['sendContact'] as const;
+
+export const getSendContactMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof sendContact>>, TError,SendContactMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof sendContact>>, TError,SendContactMutationVariables, TContext> => {
+
+const mutationKey = getSendContactMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof sendContact>>, SendContactMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  sendContact(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SendContactMutationResult = NonNullable<Awaited<ReturnType<typeof sendContact>>>
+    export type SendContactMutationBody = BodyType<ContactInput>
+    export type SendContactMutationError = ErrorType<void>
+    export type SendContactMutationVariables = {data: BodyType<ContactInput>}
+
+    export const useSendContact = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof sendContact>>, TError,SendContactMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof sendContact>>,
+        TError,
+        SendContactMutationVariables,
+        TContext
+      > => {
+      return useMutation(getSendContactMutationOptions(options), queryClient);
+    }
+
+export const getGetAdminContactUrl = () => {
+
+
+
+
+  return `/api/admin/contact`
+}
+
+export const getAdminContact = async ( options?: Parameters<typeof customFetch>[1]): Promise<ContactSettings> => {
+
+  return customFetch<ContactSettings>(getGetAdminContactUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetAdminContactQueryKey = () => {
+    return [
+    `/api/admin/contact`
+    ] as const;
+    }
+
+
+export const getGetAdminContactQueryOptions = <TData = Awaited<ReturnType<typeof getAdminContact>>, TError = ErrorType<unknown>>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getAdminContact>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetAdminContactQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getAdminContact>>> = ({ signal }) => getAdminContact({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getAdminContact>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetAdminContactQueryResult = NonNullable<Awaited<ReturnType<typeof getAdminContact>>>
+export type GetAdminContactQueryError = ErrorType<unknown>
+
+
+export function useGetAdminContact<TData = Awaited<ReturnType<typeof getAdminContact>>, TError = ErrorType<unknown>>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getAdminContact>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getAdminContact>>,
+          TError,
+          Awaited<ReturnType<typeof getAdminContact>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetAdminContact<TData = Awaited<ReturnType<typeof getAdminContact>>, TError = ErrorType<unknown>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getAdminContact>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getAdminContact>>,
+          TError,
+          Awaited<ReturnType<typeof getAdminContact>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetAdminContact<TData = Awaited<ReturnType<typeof getAdminContact>>, TError = ErrorType<unknown>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getAdminContact>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useGetAdminContact<TData = Awaited<ReturnType<typeof getAdminContact>>, TError = ErrorType<unknown>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getAdminContact>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetAdminContactQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getUpdateContactSettingsUrl = () => {
+
+
+
+
+  return `/api/admin/contact`
+}
+
+export const updateContactSettings = async (contactSettings: ContactSettings, options?: Parameters<typeof customFetch>[1]): Promise<ContactSettings> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<ContactSettings>(getUpdateContactSettingsUrl(),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(contactSettings)
+  }
+);}
+
+
+
+
+
+export const getUpdateContactSettingsMutationKey = () => ['updateContactSettings'] as const;
+
+export const getUpdateContactSettingsMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateContactSettings>>, TError,UpdateContactSettingsMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateContactSettings>>, TError,UpdateContactSettingsMutationVariables, TContext> => {
+
+const mutationKey = getUpdateContactSettingsMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateContactSettings>>, UpdateContactSettingsMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  updateContactSettings(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateContactSettingsMutationResult = NonNullable<Awaited<ReturnType<typeof updateContactSettings>>>
+    export type UpdateContactSettingsMutationBody = BodyType<ContactSettings>
+    export type UpdateContactSettingsMutationError = ErrorType<unknown>
+    export type UpdateContactSettingsMutationVariables = {data: BodyType<ContactSettings>}
+
+    export const useUpdateContactSettings = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateContactSettings>>, TError,UpdateContactSettingsMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof updateContactSettings>>,
+        TError,
+        UpdateContactSettingsMutationVariables,
+        TContext
+      > => {
+      return useMutation(getUpdateContactSettingsMutationOptions(options), queryClient);
+    }
 
 export const getGetRosterEntryUrl = (params?: GetRosterEntryParams,) => {
   const normalizedParams = new URLSearchParams();

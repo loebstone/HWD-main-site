@@ -1,4 +1,4 @@
-import { pgTable, text, timestamp, uuid, uniqueIndex } from "drizzle-orm/pg-core";
+import { pgTable, text, timestamp, uuid, uniqueIndex, jsonb } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 
 const time = (name: string) => timestamp(name, { withTimezone: true });
@@ -24,6 +24,7 @@ export const sessions = pgTable("site_sessions", {
   authenticatedAt: time("authenticated_at"),
   signInMethod: text("sign_in_method", { enum: ["magic-link", "roster"] }).notNull().default("magic-link"),
   rosterRole: text("roster_role", { enum: ["member", "editor", "admin"] }),
+  rosterApps: jsonb("roster_apps").$type<string[]>(),
   lastRosterCheckAt: time("last_roster_check_at").notNull().defaultNow(),
   lastRosterSuccessAt: time("last_roster_success_at").notNull().defaultNow(),
   endedAt: time("ended_at"),
@@ -40,4 +41,5 @@ export const grants = pgTable("site_grants", {
 export type SiteSession = typeof sessions.$inferSelect;
 export type SiteIdentity = {
   personId: string; displayName: string; goesBy: string | null; role: "member" | "editor" | "admin";
+  apps?: string[] | null;
 };

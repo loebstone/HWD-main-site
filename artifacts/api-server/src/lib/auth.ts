@@ -30,10 +30,10 @@ export async function issueLink(s: Services, email: string, origin: string): Pro
 export async function identity(s: Services, session: SiteSession): Promise<SiteIdentity> {
   if (session.signInMethod === "roster") {
     if (!session.rosterRole) throw new Refusal("Invalid Roster session");
-    return { personId: session.personId, displayName: session.displayName, goesBy: session.goesBy, role: session.rosterRole };
+    return { personId: session.personId, displayName: session.displayName, goesBy: session.goesBy, role: session.rosterRole, apps: session.rosterApps };
   }
   const [grant] = await s.db.select().from(grants).where(and(eq(grants.personId, session.personId), isNull(grants.endedAt)));
-  return { personId: session.personId, displayName: session.displayName, goesBy: session.goesBy, role: grant?.role ?? "member" };
+  return { personId: session.personId, displayName: session.displayName, goesBy: session.goesBy, role: grant?.role ?? "member", apps: session.rosterApps };
 }
 export async function verify(s: Services, token: string, address: string) {
   required("SESSION_SECRET");
@@ -48,7 +48,7 @@ export async function verify(s: Services, token: string, address: string) {
 }
 
 export async function createSession(s: Services,
-  answer: { personId: string; displayName: string; goes_by: string | null; email: string },
+  answer: { personId: string; displayName: string; goes_by: string | null; email: string; apps?: string[] },
   address: string, roster?: RedeemedIdentity) {
   required("SESSION_SECRET");
   const now = s.now();
@@ -77,6 +77,7 @@ export async function createSession(s: Services,
       signInMethod: roster ? "roster" : "magic-link",
       authenticatedAt: roster ? new Date(roster.authenticated_at) : now,
       rosterRole: roster?.role ?? null,
+      rosterApps: roster?.apps ?? answer.apps ?? null,
       expiresAt: new Date(now.getTime() + 30 * DAY), lastRenewedAt: now,
       lastRosterCheckAt: now, lastRosterSuccessAt: now }).returning();
     await audit(tx, actor, "sign-in", null, roster ? "Signed in via Roster" : "Signed in using a single-use link", address);
@@ -122,7 +123,7 @@ export async function resolveSession(s: Services, raw: unknown): Promise<SiteSes
         }
         const allowed = answer.allowed && answer.personId === current.personId;
         const [updated] = await tx.update(sessions).set({ lastRosterCheckAt: now,
-          ...(allowed ? { lastRosterSuccessAt: now } : { endedAt: now }) })
+          ...(allowed && answer.allowed ? { lastRosterSuccessAt: now, rosterApps: answer.apps ?? null } : { endedAt: now }) })
           .where(eq(sessions.hash, current.hash)).returning();
         return allowed ? updated! : null;
       } catch (error) {
