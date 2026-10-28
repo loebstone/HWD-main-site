@@ -1,36 +1,301 @@
 openapi: 3.1.0
 info:
-  # Do not change the title, if the title changes, the import paths will be broken
   title: Api
-  version: 0.1.0
-  description: API specification
+  version: 1.0.0
+  description: HWD Main Site private family API
 servers:
   - url: /api
-    description: Base API path
-tags:
-  - name: health
-    description: Health operations
 paths:
   /healthz:
     get:
       operationId: healthCheck
-      tags: [health]
-      summary: Health check
-      description: Returns server health status
       responses:
         "200":
           description: Healthy
           content:
             application/json:
-              schema:
-                $ref: "#/components/schemas/HealthStatus"
+              schema: { $ref: "#/components/schemas/HealthStatus" }
+  /auth/link:
+    post:
+      operationId: requestSignIn
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/EmailInput" }
+      responses:
+        "200":
+          description: Always neutral
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Message" }
+  /auth/verify:
+    get:
+      operationId: getVerificationGate
+      responses:
+        "200":
+          description: Rate-limited continue-page check; never consumes a token
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Message" }
+    post:
+      operationId: verifySignIn
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/TokenInput" }
+      responses:
+        "200":
+          description: Signed in
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Identity" }
+  /auth/session:
+    get:
+      operationId: getSession
+      responses:
+        "200":
+          description: Current identity
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Identity" }
+  /auth/sign-out:
+    post:
+      operationId: signOut
+      responses:
+        "200":
+          description: Signed out
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Message" }
+  /home:
+    get:
+      operationId: getHome
+      responses:
+        "200":
+          description: Private home summary
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/HomeSummary" }
+  /documents:
+    get:
+      operationId: listDocuments
+      parameters:
+        - { name: section, in: query, schema: { $ref: "#/components/schemas/Section" } }
+        - { name: includeRetired, in: query, schema: { type: boolean } }
+      responses:
+        "200":
+          description: Documents
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: "#/components/schemas/Document" } }
+    post:
+      operationId: createLinkDocument
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/DocumentInput" }
+      responses:
+        "201":
+          description: Created link
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Document" }
+  /documents/upload:
+    post:
+      operationId: uploadDocument
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema: { $ref: "#/components/schemas/FileInput" }
+      responses:
+        "201":
+          description: Uploaded PDF
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Document" }
+  /documents/{id}:
+    patch:
+      operationId: updateDocument
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/DocumentInput" }
+      responses:
+        "200":
+          description: Updated metadata
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Document" }
+  /documents/{id}/replace:
+    post:
+      operationId: replaceDocument
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema: { $ref: "#/components/schemas/FileInput" }
+      responses:
+        "201":
+          description: New version; previous version retained and retired
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Document" }
+  /documents/{id}/retire:
+    post:
+      operationId: retireDocument
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        "200":
+          description: Retired
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Message" }
+  /documents/{id}/open:
+    get:
+      operationId: openDocument
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        "200":
+          description: Authenticated PDF stream; no-store; inline disposition
+          content:
+            application/pdf:
+              schema: { type: string, format: binary }
+        "302": { description: Audited external-link redirect }
+        "401": { description: Authentication required }
+  /admin/grants:
+    get:
+      operationId: listGrants
+      responses:
+        "200":
+          description: Historical grants, never a member directory
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: "#/components/schemas/Grant" } }
+    post:
+      operationId: createGrant
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/GrantInput" }
+      responses:
+        "201":
+          description: Grant created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Grant" }
+  /admin/grants/{id}/end:
+    post:
+      operationId: endGrant
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        "200":
+          description: Grant ended
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Message" }
 components:
   schemas:
     HealthStatus:
       type: object
+      required: [status]
       properties:
-        status:
-          type: string
-      required:
-        - status
-
+        status: { type: string }
+    Message:
+      type: object
+      required: [message]
+      properties:
+        message: { type: string }
+    EmailInput:
+      type: object
+      required: [email]
+      properties:
+        email: { type: string, maxLength: 320 }
+    TokenInput:
+      type: object
+      required: [token]
+      properties:
+        token: { type: string, pattern: "^[a-f0-9]{64}$" }
+    Identity:
+      type: object
+      required: [personId, displayName, goesBy, role]
+      properties:
+        personId: { type: string }
+        displayName: { type: string }
+        goesBy: { type: ["string", "null"] }
+        role: { type: string, enum: [member, editor, admin] }
+    Section:
+      type: string
+      enum: [shareholders, directors, governing, logging, photo_archive]
+    DocumentInput:
+      type: object
+      required: [title, section, type, sortOrder, tags, note]
+      properties:
+        title: { type: string, minLength: 1, maxLength: 250 }
+        section: { $ref: "#/components/schemas/Section" }
+        year: { type: ["integer", "null"], minimum: 1800, maximum: 2200 }
+        type: { type: string, enum: [pdf, link] }
+        externalUrl: { type: ["string", "null"], maxLength: 2048 }
+        sortOrder: { type: integer }
+        tags: { type: array, items: { type: string, maxLength: 80 }, maxItems: 30 }
+        note: { type: string, maxLength: 2000 }
+    FileInput:
+      type: object
+      required: [metadata]
+      properties:
+        metadata: { type: string, description: JSON encoded DocumentInput; file optional only when replacing with a link }
+        file: { type: string, format: binary }
+    Document:
+      type: object
+      required: [id, title, section, year, type, externalUrl, sortOrder, tags, note, uploadedBy, uploadedByName, uploadedAt, retiredAt, replaces]
+      properties:
+        id: { type: string }
+        title: { type: string }
+        section: { $ref: "#/components/schemas/Section" }
+        year: { type: ["integer", "null"] }
+        type: { type: string, enum: [pdf, link] }
+        externalUrl: { type: ["string", "null"] }
+        sortOrder: { type: integer }
+        tags: { type: array, items: { type: string } }
+        note: { type: string }
+        uploadedBy: { type: string }
+        uploadedByName: { type: string }
+        uploadedAt: { type: string, format: date-time }
+        retiredAt: { type: ["string", "null"], format: date-time }
+        replaces: { type: ["string", "null"] }
+    HomeSummary:
+      type: object
+      required: [documentCount, recentDocuments]
+      properties:
+        documentCount: { type: integer }
+        recentDocuments: { type: array, items: { $ref: "#/components/schemas/Document" } }
+    GrantInput:
+      type: object
+      required: [personId, displayName, role]
+      properties:
+        personId: { type: string, minLength: 1, maxLength: 100 }
+        displayName: { type: string, minLength: 1, maxLength: 250 }
+        role: { type: string, enum: [editor, admin] }
+    Grant:
+      type: object
+      required: [id, personId, displayName, role, grantedBy, grantedAt, endedAt]
+      properties:
+        id: { type: string }
+        personId: { type: string }
+        displayName: { type: string }
+        role: { type: string, enum: [editor, admin] }
+        grantedBy: { type: string }
+        grantedAt: { type: string, format: date-time }
+        endedAt: { type: ["string", "null"], format: date-time }

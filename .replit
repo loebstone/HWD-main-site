@@ -1,4 +1,4 @@
-modules = ["nodejs-24"]
+modules = ["nodejs-24", "python-base-3.13", "postgresql-16"]
 
 [deployment]
 router = "application"
@@ -18,3 +18,15 @@ expertMode = true
 [postMerge]
 path = "scripts/post-merge.sh"
 timeoutMs = 20000
+
+[nix]
+channel = "stable-25_05"
+packages = ["glib", "nss", "nspr", "atk", "cups", "libdrm", "libxkbcommon", "xorg.libX11", "xorg.libXcomposite", "xorg.libXdamage", "xorg.libXext", "xorg.libXfixes", "xorg.libXrandr", "mesa", "expat", "xorg.libxcb", "xorg.libxshmfence", "libGL", "pango", "cairo", "at-spi2-atk", "at-spi2-core", "alsa-lib"]
+
+[userenv]
+
+[userenv.development]
+ROSTER_BASE_URL = "https://roster.hwdfarm.com"
+MAIL_FROM = "horace@hwdfarm.com"
+BOOTSTRAP_PERSON_ID = "591e328a-9cd4-44b8-9489-4468d65fae7e"
+APP_ORIGIN = "https://523147e6-cb8b-4637-84af-9a3e42f6fdfe-00-1fw1zahlxfko3.riker.replit.dev"

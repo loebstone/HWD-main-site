@@ -1,6 +1,6 @@
-# [Project name]
+# HWD Main Site
 
-_Replace the heading above with the project's name, and this line with one sentence describing what this app does for users._
+The private HWD Farm family website for Roster-approved sign-in, secure documents, announcements, and links to Farm apps.
 
 ## Run & Operate
 
@@ -34,7 +34,14 @@ _Describe the high-level user-facing capabilities of this app once they exist._
 
 ## User preferences
 
-_Populate as you build — explicit user instructions worth remembering across sessions._
+- Confirm and state the database host before any reporting query; never write to production.
+- Audit before fixing; name verification methods; label inferences; say when unfinished.
+- Withhold private data on the server, never merely hide it in the UI.
+- Nothing is hard-deleted: retire/end instead (explicit exception: sign-out removes its session).
+- Audit log is append-only at the database level. Tests never touch real person records.
+- Identity belongs to the HWD Roster; this site keeps no member list and shares no code, cookie, or database with other HWD apps.
+- Missing Roster/mail/bootstrap settings disable only their dependent feature, never the build.
+- Development emails go to the console, never Resend. Production APP_ORIGIN must be explicit.
 
 ## Gotchas
 

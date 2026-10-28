@@ -1,0 +1,28 @@
+kind = "web"
+previewPath = "/"
+title = "HWD Farm"
+description = "Private family website for HWD Farm with Roster magic-link sign-in, private documents and an append-only audit trail."
+version = "1.0.0"
+id = "artifacts/hwd-main-site"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 19379
+
+[services.development]
+run = "pnpm --filter @workspace/hwd-main-site run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/hwd-main-site", "run", "build" ]
+
+[services.production.run]
+args = [ "pnpm", "--filter", "@workspace/hwd-main-site", "run", "serve" ]
+
+[services.production.run.env]
+NODE_ENV = "production"
+
+[services.env]
+PORT = "19379"
+BASE_PATH = "/"
