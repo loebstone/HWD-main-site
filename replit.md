@@ -2,51 +2,84 @@
 
 The private HWD Farm family website for Roster-approved sign-in, secure documents, announcements, and links to Farm apps.
 
-## Run & Operate
+## Run & operate
 
-- `pnpm --filter @workspace/api-server run dev` — run the API server (port 5000)
-- `pnpm run typecheck` — full typecheck across all packages
-- `pnpm run build` — typecheck + build all packages
-- `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks and Zod schemas from the OpenAPI spec
-- `pnpm --filter @workspace/db run push` — push DB schema changes (dev only)
-- Required env: `DATABASE_URL` — Postgres connection string
+- Start API: `pnpm --filter @workspace/api-server run dev` (workflow: **API Server**).
+- Start site: `pnpm --filter @workspace/hwd-main-site run dev` (workflow: **web**).
+- Typecheck: `pnpm run typecheck`; build: `pnpm run build`.
+- Regenerate API hooks and Zod schemas: `pnpm --filter @workspace/api-spec run codegen`.
+- Apply Drizzle schema in development only: `pnpm --filter @workspace/db run push`.
+- Install append-only and no-hard-delete database protections in development only: `pnpm --filter @workspace/api-server run security:dev`.
+- Automated security and browser suite: `pnpm --filter @workspace/api-server test`. Browser walk-through also needs Playwright Chromium.
+- Tests use an isolated, randomly named schema in the development database and synthetic identities only.
+- Before any reporting query, state the environment and confirm the database host. Never write to production.
+
+## Required secrets and settings
+
+- `DATABASE_URL` — Replit PostgreSQL connection.
+- `SESSION_SECRET` — session, token, and rate-limit hashing.
+- `SITE_SERVICE_KEY` — bearer credential for the HWD Roster service check.
+- `ROSTER_BASE_URL` — HWD Roster origin.
+- `MAIL_FROM` — sender address.
+- `BOOTSTRAP_PERSON_ID` — Roster person id eligible for the one-time first-admin grant.
+- `APP_ORIGIN` — explicit public origin in production; development may derive `https://$REPLIT_DEV_DOMAIN`.
+- Resend is called through the connected Replit integration using `@replit/connectors-sdk`; there is no separate `RESEND_API_KEY` app variable.
+- Private App Storage uses the Replit-provided bucket configuration (`DEFAULT_OBJECT_STORAGE_BUCKET_ID`, `PRIVATE_OBJECT_DIR`, and `PUBLIC_OBJECT_SEARCH_PATHS` as applicable); do not make document objects public.
+- Missing optional Roster, mail, bootstrap, or origin configuration disables only the feature that needs it, with a clear server log. It does not block build/startup. Never invent a fallback identity, send development mail, or derive a production origin.
 
 ## Stack
 
-- pnpm workspaces, Node.js 24, TypeScript 5.9
-- API: Express 5
-- DB: PostgreSQL + Drizzle ORM
-- Validation: Zod (`zod/v4`), `drizzle-zod`
-- API codegen: Orval (from OpenAPI spec)
-- Build: esbuild (CJS bundle)
+- pnpm workspace, Node.js 24, TypeScript; Express 5 API.
+- React, Vite, Tailwind, shadcn/ui.
+- PostgreSQL and Drizzle ORM; Zod validation; OpenAPI contract and generated Orval hooks.
+- Private file objects in Replit App Storage; never expose bucket URLs or signed public links.
 
 ## Where things live
 
-_Populate as you build — short repo map plus pointers to the source-of-truth file for DB schema, API contracts, theme files, etc._
+- `artifacts/hwd-main-site/` — HWD Farm website, pages, components, visual assets, and Vite configuration.
+- `artifacts/api-server/src/routes/auth.ts` and `src/lib/auth.ts` — sign-in, one-time tokens, sessions, and sign-out.
+- `artifacts/api-server/src/routes/documents.ts` and `src/lib/documents.ts` — document metadata, upload, replace, retire, and protected open.
+- `artifacts/api-server/src/lib/roster.ts` — server-to-server identity check against HWD Roster.
+- `artifacts/api-server/src/lib/private-storage.ts` — private object storage adapter.
+- `artifacts/api-server/src/lib/audit.ts` — audit append operation.
+- `artifacts/api-server/src/middlewares/security.ts` and `src/app.ts` — session/role checks, visitor rate limits, CSRF, security headers, and error handling.
+- `artifacts/api-server/tests/foundation.test.ts` — isolated tests with stubbed Roster, test email transport, and optional Chromium walk-through.
+- `lib/db/src/schema/` — Drizzle tables; `lib/db/security.sql` — database-enforced append-only and hard-delete protections.
+- `lib/api-spec/` — source OpenAPI contract and code generation configuration.
+- `generated-artifacts/` — local test screenshots; ignored by Git/deployment.
+- `artifacts/hwd-main-site/public/images/hwd-farm-illustration.jpg` — downloaded public home illustration.
 
-## Architecture decisions
+## Architecture and security decisions
 
-_Populate as you build — non-obvious choices a reader couldn't infer from the code (3-5 bullets)._
+- Roster is authoritative; the site stores no independent member directory. Sign-in tokens and session cookies are random bearer secrets whose database representation is SHA-256 hashed.
+- Email is neutral for allowed and refused addresses. Development sign-in links go only to server logs; production delivery uses the connected Resend integration. The continue page checks the token without consuming it; only the Continue action attempts the atomic single-use consume.
+- All API routes require a valid session except the explicit anonymous list below. Roles are checked on the server for every protected operation.
+- Document downloads are authenticated streams with `Cache-Control: no-store`; private object keys never reach the client. PDF uploads are signature-checked and capped at 50 MB.
+- Documents and grants are retired/ended, not deleted. Sign-out is the requested exception and removes that session row.
+- Audit rows are protected by a database trigger against UPDATE, DELETE, and TRUNCATE, with mutation grants revoked. `security.sql` is a development-only installation script; do not run it against production without explicit production authorization.
+- `site_session` is the only site cookie; its 30-day sliding expiry has a 12-month absolute limit and daily Roster recheck.
+- **Database separation limitation:** the current Replit workspace provides one PostgreSQL database. HWD tables are site-specific, but currently reside in the workspace database (`heliumdb` on host `helium`) rather than a separate physical database. This does not yet meet the requested independent-database boundary and must be resolved before calling the foundation complete or publishing.
 
-## Product
+## Anonymous routes (closed list)
 
-_Describe the high-level user-facing capabilities of this app once they exist._
+- `GET /api/healthz` — liveness only; exposes no identity or document data.
+- `GET /api/auth/verify` — non-consuming continue-page preflight; token consumption is only by POST.
+- `POST /api/auth/link` — generic magic-link request; same visible response for allowed, denied, and unavailable Roster.
+- `POST /api/auth/verify` — single-use token verification and session creation.
+- Public pages: `/sign-in` and `/auth/continue` only. All other API requests require a session; signed-in pages redirect to sign-in when anonymous.
 
-## User preferences
+## Product scope in this foundation
+
+- Family sign-in, member home, Meetings (Shareholders and Directors), Calendar, Logging, Governing Docs & Policies, Photo Archive, Announcements placeholder, and Admin > Documents.
+- Admin navigation and server authorization are role-restricted. Admin Announcements and People/Grants screens are placeholders for the next scope.
+- No Google embeds or direct public-document links.
+
+## Working rules
 
 - Confirm and state the database host before any reporting query; never write to production.
-- Audit before fixing; name verification methods; label inferences; say when unfinished.
-- Withhold private data on the server, never merely hide it in the UI.
-- Nothing is hard-deleted: retire/end instead (explicit exception: sign-out removes its session).
+- Audit before fixing; verification names its method; label inferences; say when unfinished.
+- Private data is withheld on the server, never merely hidden in the UI.
+- Nothing is hard-deleted: retire/end instead (sign-out may remove its session).
 - Audit log is append-only at the database level. Tests never touch real person records.
-- Identity belongs to the HWD Roster; this site keeps no member list and shares no code, cookie, or database with other HWD apps.
-- Missing Roster/mail/bootstrap settings disable only their dependent feature, never the build.
-- Development emails go to the console, never Resend. Production APP_ORIGIN must be explicit.
-
-## Gotchas
-
-_Populate as you build — sharp edges, "always run X before Y" rules._
-
-## Pointers
-
-- See the `pnpm-workspace` skill for workspace structure, TypeScript setup, and package details
+- Identity comes from the HWD Roster. Do not share the member list, cookie, or application database with the other HWD apps.
+- Keep missing settings feature-local; development mail is console-only; production `APP_ORIGIN` must be explicit.

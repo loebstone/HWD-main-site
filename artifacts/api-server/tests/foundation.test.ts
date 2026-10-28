@@ -320,7 +320,7 @@ test("HWD foundation: isolated development security suite", async (t) => {
         await request(app).post("/api/admin/grants").set("Cookie", adminCookie)
           .send({ personId: "synthetic-browser", displayName: "Synthetic Browser", role: "editor" }).expect(201);
         await page.reload();
-        await page.getByTestId("link-nav-admin").click();
+        await page.getByTestId("link-nav-admin").filter({ visible: true }).click();
         await page.getByTestId("button-upload-pdf").click();
         await page.getByTestId("input-title").fill("Browser synthetic PDF");
         await page.getByTestId("input-year").fill("2026");
@@ -350,13 +350,13 @@ test("HWD foundation: isolated development security suite", async (t) => {
         console.info("Browser: upload, metadata edit, replacement, meeting document and note all visible");
         await page.setViewportSize({ width: 390, height: 844 });
         await page.getByTestId("button-menu").click();
-        await page.getByTestId("link-nav-meetings").click();
+        await page.getByTestId("link-nav-meetings").filter({ visible: true }).click();
         await page.getByRole("heading", { name: "Meetings", exact: true }).waitFor();
         const overflow = await page.evaluate(() => document.documentElement.scrollWidth > innerWidth);
         assert.equal(overflow, false, "Phone layout must not overflow");
         await page.screenshot({ path: "../../generated-artifacts/hwd-phone-meetings.jpg", fullPage: true });
         await page.getByTestId("button-menu").click();
-        await page.getByTestId("link-nav-admin").click();
+        await page.getByTestId("link-nav-admin").filter({ visible: true }).click();
         await page.getByTestId(`button-retire-${replaced.id}`).click();
         await page.getByTestId("button-confirm-retire").click();
         await page.getByRole("alertdialog").waitFor({ state: "hidden" });
