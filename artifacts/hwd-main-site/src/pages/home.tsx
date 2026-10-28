@@ -6,13 +6,7 @@ import { DocumentCard } from "@/components/document-card";
 import { EmptyState, ErrorState, ListSkeleton } from "@/components/states";
 import { Skeleton } from "@/components/ui/skeleton";
 import { NoticeText } from "@/components/notice-text";
-
-const QUICK = [
-  { href: "/meetings", label: "Meetings", text: "Shareholders' and directors' minutes, by year" },
-  { href: "/governing", label: "Governing Docs & Policies", text: "Bylaws, agreements and house rules" },
-  { href: "/logging", label: "Logging", text: "Forestry plans and harvest records" },
-  { href: "/photo-archive", label: "Photo Archive", text: "Albums and pictures through the years" },
-];
+import { formatDate } from "@/lib/docs";
 
 export default function HomePage() {
   const { data: me } = useSession();
@@ -71,18 +65,22 @@ export default function HomePage() {
               </article>)}</div>}
       </section>
 
-      <section className="grid sm:grid-cols-2 gap-4">
-        {QUICK.map((q, i) => (
-          <Link key={q.href} href={q.href} style={{ animationDelay: `${i * 60}ms` }}
-            className="rise group rounded-xl border bg-card p-5 hover:border-primary/40 hover:shadow-md transition-all"
-            data-testid={`link-quick-${q.href.slice(1)}`}>
-            <span className="flex items-center justify-between font-display text-2xl">
-              {q.label}<ArrowRight className="h-5 w-5 text-primary transition-transform group-hover:translate-x-1" />
+      {home.isLoading ? <section className="grid sm:grid-cols-2 gap-4"><Skeleton className="h-28 rounded-xl" /><Skeleton className="h-28 rounded-xl" /></section> :
+        !!home.data?.featuredGroups.length && <section className="grid sm:grid-cols-2 gap-4" data-testid="section-featured-groups">
+        {home.data.featuredGroups.map((g, i) => (
+          <Link key={g.id} href={`/documents/${g.slug}`} style={{ animationDelay: `${i * 60}ms` }}
+            className="rise group min-w-0 rounded-xl border bg-card p-5 hover:border-primary/40 hover:shadow-md transition-all"
+            data-testid={`link-quick-${g.slug}`}>
+            <span className="flex items-center justify-between gap-3 font-display text-2xl">
+              <span className="min-w-0 break-words">{g.name}</span><ArrowRight className="h-5 w-5 shrink-0 text-primary transition-transform group-hover:translate-x-1" />
             </span>
-            <span className="mt-1 block text-muted-foreground">{q.text}</span>
+            {g.description && <span className="mt-1 block text-muted-foreground break-words">{g.description}</span>}
+            <span className="mt-3 block text-sm text-muted-foreground truncate">
+              {g.documentCount} {g.documentCount === 1 ? "document" : "documents"}{g.latestTitle ? ` · Latest: ${g.latestTitle}` : ""}{g.latestDate ? `, ${formatDate(g.latestDate)}` : ""}
+            </span>
           </Link>
         ))}
-      </section>
+      </section>}
 
       <section>
         <div className="flex items-baseline justify-between mb-5">

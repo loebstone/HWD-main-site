@@ -6,7 +6,7 @@
  * OpenAPI spec version: 1.0.0
  */
 import type { DocumentInputType } from './documentInputType';
-import type { Section } from './section';
+import type { LegacySection } from './legacySection';
 
 export interface DocumentInput {
   /**
@@ -14,7 +14,8 @@ export interface DocumentInput {
      * @maxLength 250
      */
   title: string;
-  section: Section;
+  groupId: string;
+  section?: LegacySection | null;
   /**
      * @minimum 1800
      * @maximum 2200

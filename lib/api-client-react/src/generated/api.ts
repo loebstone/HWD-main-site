@@ -32,13 +32,18 @@ import type {
   AuditPage,
   AuthUrl,
   Document,
+  DocumentGroup,
   DocumentInput,
+  DocumentMoveInput,
   EmailInput,
   FileInput,
   GetRosterEntryParams,
   Grant,
   GrantInput,
+  GroupDocuments,
+  GroupInput,
   HealthStatus,
+  HomeGroups,
   HomeNotice,
   HomeNoticeInput,
   HomeSummary,
@@ -1086,6 +1091,688 @@ export function useGetHome<TData = Awaited<ReturnType<typeof getHome>>, TError =
 
 
 
+
+export const getListDocumentGroupsUrl = () => {
+
+
+
+
+  return `/api/groups`
+}
+
+export const listDocumentGroups = async ( options?: Parameters<typeof customFetch>[1]): Promise<DocumentGroup[]> => {
+
+  return customFetch<DocumentGroup[]>(getListDocumentGroupsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListDocumentGroupsQueryKey = () => {
+    return [
+    `/api/groups`
+    ] as const;
+    }
+
+
+export const getListDocumentGroupsQueryOptions = <TData = Awaited<ReturnType<typeof listDocumentGroups>>, TError = ErrorType<unknown>>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listDocumentGroups>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListDocumentGroupsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listDocumentGroups>>> = ({ signal }) => listDocumentGroups({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listDocumentGroups>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListDocumentGroupsQueryResult = NonNullable<Awaited<ReturnType<typeof listDocumentGroups>>>
+export type ListDocumentGroupsQueryError = ErrorType<unknown>
+
+
+export function useListDocumentGroups<TData = Awaited<ReturnType<typeof listDocumentGroups>>, TError = ErrorType<unknown>>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listDocumentGroups>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listDocumentGroups>>,
+          TError,
+          Awaited<ReturnType<typeof listDocumentGroups>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListDocumentGroups<TData = Awaited<ReturnType<typeof listDocumentGroups>>, TError = ErrorType<unknown>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listDocumentGroups>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listDocumentGroups>>,
+          TError,
+          Awaited<ReturnType<typeof listDocumentGroups>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListDocumentGroups<TData = Awaited<ReturnType<typeof listDocumentGroups>>, TError = ErrorType<unknown>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listDocumentGroups>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useListDocumentGroups<TData = Awaited<ReturnType<typeof listDocumentGroups>>, TError = ErrorType<unknown>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listDocumentGroups>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListDocumentGroupsQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetDocumentGroupUrl = (slug: string,) => {
+
+
+
+
+  return `/api/groups/${slug}`
+}
+
+export const getDocumentGroup = async (slug: string, options?: Parameters<typeof customFetch>[1]): Promise<GroupDocuments> => {
+
+  return customFetch<GroupDocuments>(getGetDocumentGroupUrl(slug),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetDocumentGroupQueryKey = (slug: string,) => {
+    return [
+    `/api/groups/${slug}`
+    ] as const;
+    }
+
+
+export const getGetDocumentGroupQueryOptions = <TData = Awaited<ReturnType<typeof getDocumentGroup>>, TError = ErrorType<void>>(slug: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getDocumentGroup>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetDocumentGroupQueryKey(slug);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getDocumentGroup>>> = ({ signal }) => getDocumentGroup(slug, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: slug !== null && slug !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getDocumentGroup>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetDocumentGroupQueryResult = NonNullable<Awaited<ReturnType<typeof getDocumentGroup>>>
+export type GetDocumentGroupQueryError = ErrorType<void>
+
+
+export function useGetDocumentGroup<TData = Awaited<ReturnType<typeof getDocumentGroup>>, TError = ErrorType<void>>(
+ slug: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getDocumentGroup>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getDocumentGroup>>,
+          TError,
+          Awaited<ReturnType<typeof getDocumentGroup>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetDocumentGroup<TData = Awaited<ReturnType<typeof getDocumentGroup>>, TError = ErrorType<void>>(
+ slug: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getDocumentGroup>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getDocumentGroup>>,
+          TError,
+          Awaited<ReturnType<typeof getDocumentGroup>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetDocumentGroup<TData = Awaited<ReturnType<typeof getDocumentGroup>>, TError = ErrorType<void>>(
+ slug: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getDocumentGroup>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useGetDocumentGroup<TData = Awaited<ReturnType<typeof getDocumentGroup>>, TError = ErrorType<void>>(
+ slug: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getDocumentGroup>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetDocumentGroupQueryOptions(slug,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateDocumentGroupUrl = () => {
+
+
+
+
+  return `/api/admin/groups`
+}
+
+export const createDocumentGroup = async (groupInput: GroupInput, options?: Parameters<typeof customFetch>[1]): Promise<DocumentGroup> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<DocumentGroup>(getCreateDocumentGroupUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(groupInput)
+  }
+);}
+
+
+
+
+
+export const getCreateDocumentGroupMutationKey = () => ['createDocumentGroup'] as const;
+
+export const getCreateDocumentGroupMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createDocumentGroup>>, TError,CreateDocumentGroupMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createDocumentGroup>>, TError,CreateDocumentGroupMutationVariables, TContext> => {
+
+const mutationKey = getCreateDocumentGroupMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createDocumentGroup>>, CreateDocumentGroupMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  createDocumentGroup(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateDocumentGroupMutationResult = NonNullable<Awaited<ReturnType<typeof createDocumentGroup>>>
+    export type CreateDocumentGroupMutationBody = BodyType<GroupInput>
+    export type CreateDocumentGroupMutationError = ErrorType<unknown>
+    export type CreateDocumentGroupMutationVariables = {data: BodyType<GroupInput>}
+
+    export const useCreateDocumentGroup = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createDocumentGroup>>, TError,CreateDocumentGroupMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof createDocumentGroup>>,
+        TError,
+        CreateDocumentGroupMutationVariables,
+        TContext
+      > => {
+      return useMutation(getCreateDocumentGroupMutationOptions(options), queryClient);
+    }
+
+export const getUpdateDocumentGroupUrl = (id: string,) => {
+
+
+
+
+  return `/api/admin/groups/${id}`
+}
+
+export const updateDocumentGroup = async (id: string,
+    groupInput: GroupInput, options?: Parameters<typeof customFetch>[1]): Promise<DocumentGroup> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<DocumentGroup>(getUpdateDocumentGroupUrl(id),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(groupInput)
+  }
+);}
+
+
+
+
+
+export const getUpdateDocumentGroupMutationKey = () => ['updateDocumentGroup'] as const;
+
+export const getUpdateDocumentGroupMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateDocumentGroup>>, TError,UpdateDocumentGroupMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateDocumentGroup>>, TError,UpdateDocumentGroupMutationVariables, TContext> => {
+
+const mutationKey = getUpdateDocumentGroupMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateDocumentGroup>>, UpdateDocumentGroupMutationVariables> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  updateDocumentGroup(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateDocumentGroupMutationResult = NonNullable<Awaited<ReturnType<typeof updateDocumentGroup>>>
+    export type UpdateDocumentGroupMutationBody = BodyType<GroupInput>
+    export type UpdateDocumentGroupMutationError = ErrorType<unknown>
+    export type UpdateDocumentGroupMutationVariables = {id: string;data: BodyType<GroupInput>}
+
+    export const useUpdateDocumentGroup = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateDocumentGroup>>, TError,UpdateDocumentGroupMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof updateDocumentGroup>>,
+        TError,
+        UpdateDocumentGroupMutationVariables,
+        TContext
+      > => {
+      return useMutation(getUpdateDocumentGroupMutationOptions(options), queryClient);
+    }
+
+export const getRetireDocumentGroupUrl = (id: string,) => {
+
+
+
+
+  return `/api/admin/groups/${id}/retire`
+}
+
+export const retireDocumentGroup = async (id: string, options?: Parameters<typeof customFetch>[1]): Promise<Message> => {
+
+  return customFetch<Message>(getRetireDocumentGroupUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getRetireDocumentGroupMutationKey = () => ['retireDocumentGroup'] as const;
+
+export const getRetireDocumentGroupMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof retireDocumentGroup>>, TError,RetireDocumentGroupMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof retireDocumentGroup>>, TError,RetireDocumentGroupMutationVariables, TContext> => {
+
+const mutationKey = getRetireDocumentGroupMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof retireDocumentGroup>>, RetireDocumentGroupMutationVariables> = (props) => {
+          const {id} = props ?? {};
+
+          return  retireDocumentGroup(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RetireDocumentGroupMutationResult = NonNullable<Awaited<ReturnType<typeof retireDocumentGroup>>>
+
+    export type RetireDocumentGroupMutationError = ErrorType<void>
+    export type RetireDocumentGroupMutationVariables = {id: string}
+
+    export const useRetireDocumentGroup = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof retireDocumentGroup>>, TError,RetireDocumentGroupMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof retireDocumentGroup>>,
+        TError,
+        RetireDocumentGroupMutationVariables,
+        TContext
+      > => {
+      return useMutation(getRetireDocumentGroupMutationOptions(options), queryClient);
+    }
+
+export const getMoveDocumentsUrl = () => {
+
+
+
+
+  return `/api/documents/move`
+}
+
+export const moveDocuments = async (documentMoveInput: DocumentMoveInput, options?: Parameters<typeof customFetch>[1]): Promise<Message> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<Message>(getMoveDocumentsUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(documentMoveInput)
+  }
+);}
+
+
+
+
+
+export const getMoveDocumentsMutationKey = () => ['moveDocuments'] as const;
+
+export const getMoveDocumentsMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof moveDocuments>>, TError,MoveDocumentsMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof moveDocuments>>, TError,MoveDocumentsMutationVariables, TContext> => {
+
+const mutationKey = getMoveDocumentsMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof moveDocuments>>, MoveDocumentsMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  moveDocuments(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type MoveDocumentsMutationResult = NonNullable<Awaited<ReturnType<typeof moveDocuments>>>
+    export type MoveDocumentsMutationBody = BodyType<DocumentMoveInput>
+    export type MoveDocumentsMutationError = ErrorType<unknown>
+    export type MoveDocumentsMutationVariables = {data: BodyType<DocumentMoveInput>}
+
+    export const useMoveDocuments = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof moveDocuments>>, TError,MoveDocumentsMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof moveDocuments>>,
+        TError,
+        MoveDocumentsMutationVariables,
+        TContext
+      > => {
+      return useMutation(getMoveDocumentsMutationOptions(options), queryClient);
+    }
+
+export const getGetHomeGroupsUrl = () => {
+
+
+
+
+  return `/api/admin/home`
+}
+
+export const getHomeGroups = async ( options?: Parameters<typeof customFetch>[1]): Promise<HomeGroups> => {
+
+  return customFetch<HomeGroups>(getGetHomeGroupsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetHomeGroupsQueryKey = () => {
+    return [
+    `/api/admin/home`
+    ] as const;
+    }
+
+
+export const getGetHomeGroupsQueryOptions = <TData = Awaited<ReturnType<typeof getHomeGroups>>, TError = ErrorType<unknown>>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getHomeGroups>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetHomeGroupsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getHomeGroups>>> = ({ signal }) => getHomeGroups({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getHomeGroups>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetHomeGroupsQueryResult = NonNullable<Awaited<ReturnType<typeof getHomeGroups>>>
+export type GetHomeGroupsQueryError = ErrorType<unknown>
+
+
+export function useGetHomeGroups<TData = Awaited<ReturnType<typeof getHomeGroups>>, TError = ErrorType<unknown>>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getHomeGroups>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getHomeGroups>>,
+          TError,
+          Awaited<ReturnType<typeof getHomeGroups>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetHomeGroups<TData = Awaited<ReturnType<typeof getHomeGroups>>, TError = ErrorType<unknown>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getHomeGroups>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getHomeGroups>>,
+          TError,
+          Awaited<ReturnType<typeof getHomeGroups>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetHomeGroups<TData = Awaited<ReturnType<typeof getHomeGroups>>, TError = ErrorType<unknown>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getHomeGroups>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useGetHomeGroups<TData = Awaited<ReturnType<typeof getHomeGroups>>, TError = ErrorType<unknown>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getHomeGroups>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetHomeGroupsQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getUpdateHomeGroupsUrl = () => {
+
+
+
+
+  return `/api/admin/home`
+}
+
+export const updateHomeGroups = async (homeGroups: HomeGroups, options?: Parameters<typeof customFetch>[1]): Promise<HomeGroups> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<HomeGroups>(getUpdateHomeGroupsUrl(),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(homeGroups)
+  }
+);}
+
+
+
+
+
+export const getUpdateHomeGroupsMutationKey = () => ['updateHomeGroups'] as const;
+
+export const getUpdateHomeGroupsMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateHomeGroups>>, TError,UpdateHomeGroupsMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateHomeGroups>>, TError,UpdateHomeGroupsMutationVariables, TContext> => {
+
+const mutationKey = getUpdateHomeGroupsMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateHomeGroups>>, UpdateHomeGroupsMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  updateHomeGroups(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateHomeGroupsMutationResult = NonNullable<Awaited<ReturnType<typeof updateHomeGroups>>>
+    export type UpdateHomeGroupsMutationBody = BodyType<HomeGroups>
+    export type UpdateHomeGroupsMutationError = ErrorType<unknown>
+    export type UpdateHomeGroupsMutationVariables = {data: BodyType<HomeGroups>}
+
+    export const useUpdateHomeGroups = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateHomeGroups>>, TError,UpdateHomeGroupsMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof updateHomeGroups>>,
+        TError,
+        UpdateHomeGroupsMutationVariables,
+        TContext
+      > => {
+      return useMutation(getUpdateHomeGroupsMutationOptions(options), queryClient);
+    }
 
 export const getListDocumentsUrl = (params?: ListDocumentsParams,) => {
   const normalizedParams = new URLSearchParams();

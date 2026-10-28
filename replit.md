@@ -10,6 +10,7 @@ The private HWD Farm family website with Roster single sign-in, secure documents
 - Regenerate API hooks and Zod schemas: `pnpm --filter @workspace/api-spec run codegen`.
 - Apply Drizzle schema in development only: `pnpm --filter @workspace/db run push`.
 - Append-only audit and no-hard-delete protections install idempotently when the API starts. The manual `security:dev` command is for development only.
+- After an additive schema push, API startup runs the recorded, transactional document-group migration before listening. Do not start an old API version against the new live-group constraint without the reviewed rollback steps below.
 - Automated security and browser suite: `pnpm --filter @workspace/api-server test`. Browser walk-through also needs Playwright Chromium.
 - Tests use an isolated, randomly named schema in the development database and synthetic identities only.
 - Before any reporting query, state the environment and confirm the database host. Never write to production.
@@ -42,6 +43,9 @@ The private HWD Farm family website with Roster single sign-in, secure documents
 - `artifacts/api-server/src/routes/auth.ts` and `src/lib/auth.ts` — sign-in, one-time tokens, sessions, and sign-out.
 - `artifacts/api-server/src/routes/sso.ts`, `src/lib/sso.ts`, and `src/lib/roster.ts` — Roster ticket callback, safe return paths, entry URL and server-to-server redemption.
 - `artifacts/api-server/src/routes/documents.ts` and `src/lib/documents.ts` — document metadata, upload, replace, retire, and protected open.
+- `lib/db/src/schema/document-groups.ts`, `artifacts/api-server/src/migrate-document-groups.ts`, `src/lib/document-groups.ts`, and `src/routes/document-groups.ts` — group schema, startup migration, role-filtered summaries, group administration, featured Home selection and legacy route destinations.
+- `artifacts/hwd-main-site/src/pages/documents.tsx`, `pages/document-group.tsx`, `components/admin/groups-panel.tsx`, and `pages/admin/admin-home.tsx` — Documents home, group pages, Groups panel and admin-selected Quick access.
+- `artifacts/api-server/tests/groups-browser-fixture.ts` — opt-in isolated-schema, synthetic-only browser API; never use real person records or production. Send SIGTERM to the child PID in `/tmp/hwd-groups-browser-fixture.json` (not the pnpm/tsx wrapper) to close and remove only its synthetic schema.
 - `artifacts/api-server/src/routes/announcements.ts`, `routes/settings.ts`, and `routes/audit.ts` — announcements, home notice, app links, and filtered audit history.
 - `artifacts/api-server/src/lib/site-content.ts` — announcement and settings validation, defaults, and live/past selection.
 - `artifacts/api-server/src/lib/roster.ts` — server-to-server identity check against HWD Roster.
@@ -80,6 +84,7 @@ The private HWD Farm family website with Roster single sign-in, secure documents
 - Admin > Documents has an admin-only **Import from old site** panel. Server routes are `GET/POST /api/admin/old-site-import`; neither is anonymous or editor-accessible.
 - `artifacts/api-server/src/lib/old-site-fetch.ts` reads the published CSV fresh on every run, parses quoted CSV, restricts all fetches/redirects to HTTPS Google hosts, limits fetches to 20 seconds and PDFs to 50 MB, and follows at most one Drive confirmation link/form.
 - `artifacts/api-server/src/lib/old-site-import.ts` validates/maps each row, continues after individual failures, and uses the same private-storage/document-creation function as manual uploads. No signed/public file URLs are generated. The current published sheet's blank twelfth header is the supporting-text column.
+- The importer maps legacy sections to the five seeded group IDs, including after a group is renamed. A retired destination is refused, not silently substituted.
 - Importing is idempotent by the original sheet `id`, stored as `legacy_sheet_id` on documents/announcements, including retired records. Per-row database advisory locks and unique indexes prevent concurrent duplicates. Every created row also has an `import` audit entry attributed to the authenticated admin with description `Import from old site: <sheet id>`.
 - Runs execute in the background so the HTTP request does not time out. The last run table, time, actor, source hash and progress are persisted as `old-site-import-last-run` in site settings; the UI polls while running. A stale two-minute progress lease reports an interrupted run and permits a safe rerun. Dry runs write the report only, fetch no source files, and label planned rows **would import**.
 - The browser panel lives in `artifacts/hwd-main-site/src/components/admin/old-site-import.tsx`; contracts and hooks are generated from the OpenAPI spec.
@@ -94,12 +99,25 @@ The private HWD Farm family website with Roster single sign-in, secure documents
 - `GET /auth/sso` — exchanges a Roster single-use ticket for the normal site session; rate-limited, validates the redirect destination, never serves private content anonymously.
 - `POST /api/auth/link` — admin back-door magic-link request; same visible response for allowed, denied, and unavailable Roster.
 - `POST /api/auth/verify` — atomic single-use back-door token verification; requires a local admin grant (including eligible bootstrap).
+- `GET /meetings`, `/meetings/shareholders`, `/meetings/directors`, `/logging`, `/governing`, `/photo-archive` — HTTP 301 compatibility redirects only; no document data. `/meetings` goes to `/documents`; the others use the seeded group's current slug. A staff-only/retired destination falls back to `/documents`, without exposing its slug. Artifact routing sends these paths to the API in development and on the next deployment.
 - Public pages: `/sign-in`, `/admin/sign-in` (unlinked), and `/auth/continue`. All other API requests require a session; anonymous protected-page visits go directly to the authority's entry URL before React renders, remembering the intended path.
 
-## Product scope in this foundation
+## Document groups and reversible migration
 
-- Family sign-in, member home, Meetings (Shareholders and Directors), Calendar, Logging, Governing Docs & Policies, Photo Archive, and Announcements.
-- Admin > Documents, Announcements, and Home notice are editor/admin accessible; Apps, People/Access, and Audit are admin-only. App-link filtering and all write authorization are enforced by the server.
+- The Documents menu replaces the old section menu entries. `/documents` lists visible active groups in sort order; `/documents/:slug` lists live records using `list` or newest-year-first `by_year` layout and client-side search. Calendar, Announcements and Admin retain their existing behavior.
+- The migration runs transactionally under an advisory lock, once per database, recorded as `document-groups` in `site_data_migrations`. It creates Shareholders' meetings, Directors' meetings, Governing docs & policies, Logging, Photo archive, in that order, all visible to everyone. It assigns **all** existing records, including retired records, by their legacy section; any unassigned record or changed total aborts the entire transaction. Subsequent boots never reset moved documents, renamed groups or visibility.
+- Migration records contain counts per group and the original document IDs, sections and prior group IDs. Neither document IDs, bytes, storage keys, URLs, upload timestamps, versions nor retirement status are changed. The old section remains migration history, not the current navigation or grouping source; metadata edits and moves preserve it. New manual documents have NULL legacy section rather than an invented classification; imported records retain their mapped legacy section. No migration reads or writes production from the Agent.
+- `group_id` is nullable during additive schema push; after mapping, startup installs a database CHECK requiring a group on every live document. Its foreign key prevents dangling IDs. The old section-dependent year CHECK is removed: legacy import still requires/infers meeting years, while current group-based forms allow an optional year (shown as “Undated”).
+- Rollback procedure for an operator, **not executed on production**: stop the new API; retain the schema, groups, immutable migration journal and private objects; revert the app to the section-based version. Before allowing old-code writes, remove only `site_live_document_group` in a reviewed migration because old code does not supply a group ID. Existing records remain usable via their unchanged section. If reversing the group assignment itself, use `details.originalAssignments` to restore only those recorded document IDs and prior group IDs; never overwrite records created later, never delete groups/documents/journal/files. The isolated test exercises that restoration inside a rolled-back transaction and checks preserved metadata. Re-enabling this version requires revalidating live group assignments before reinstalling its constraint; do not erase the journal to force a rerun.
+- Staff means editors and admins. Members receive no staff groups, documents, Home counts/recent titles, or featured cards. A member guessing a staff group's slug or a document's open URL receives 404. Staff “Show retired” retains document history even after an empty group is retired. Every document stream still requires a session and is no-store; private keys are never serialized.
+- Editors/admins manage groups and documents. Group mutations lock the group; uploads, edits, replacements and bulk moves lock the target group, preventing retirement racing a new live document. A group with live documents cannot be retired; all rows/files are retained. Groups forbid hard delete/TRUNCATE and the migration journal forbids UPDATE/DELETE/TRUNCATE at the database level.
+- Audit actions: `group-create`, `group-edit`, `group-retire`, `document-move`, and `home-edit` (featured selection). A metadata edit that changes group also records `document-move`. Bulk moves are atomic and audit each document with old/new group IDs.
+- Admin > Home chooses zero to four featured groups, in selection order; default: shareholders, directors, governing, logging. Home filters the chosen groups on the server for the current role, as it does Recently added and the document total.
+
+## Product scope
+
+- Family sign-in, member Home, Documents and group pages, Calendar, and Announcements.
+- Admin > Documents (including Groups), Announcements, and Home notice are editor/admin accessible; Home featured selection, Apps, People/Access, and Audit are admin-only. Group visibility, app-link filtering and all write authorization are enforced by the server.
 - Home supports five live reminders, the role-filtered Farm apps strip, and an admin-editable notice that can optionally appear on the sign-in page.
 - No Google embeds or direct public-document links.
 

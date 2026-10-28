@@ -7,7 +7,7 @@ import { mkdir } from "node:fs/promises";
 import pg from "pg";
 import request from "supertest";
 import { drizzle } from "drizzle-orm/node-postgres";
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq, inArray, sql } from "drizzle-orm";
 import { pool, loginTokens, sessions, grants, documents, auditLog, announcements } from "@workspace/db";
 import * as schema from "@workspace/db/schema";
 import { createApp } from "../src/app";
@@ -24,6 +24,8 @@ import { BUILD_ID } from "../src/lib/build-identity";
 import { resolveProxyTrust } from "../src/lib/proxy-trust";
 import { returnPath, rosterEntry } from "../src/lib/sso";
 import type { Services } from "../src/lib/services";
+import { DEFAULT_GROUPS, migrateDocumentGroups } from "../src/migrate-document-groups";
+import { documentGroups, dataMigrations } from "@workspace/db";
 
 test("proxy startup setting accepts only integer depths 0–8 with explained defaults", () => {
   for (let hops = 0; hops <= 8; hops++) {
@@ -62,10 +64,31 @@ test("HWD foundation: isolated development security suite", async (t) => {
   await connection.query(`SET search_path TO "${isolated}"`);
   const evidence = await connection.query("SELECT inet_server_addr()::text AS server_address, current_database() AS database_name");
   console.info("Observed database by query:", evidence.rows[0], "isolated schema:", isolated);
-  for (const table of ["site_login_tokens", "site_sessions", "site_grants", "site_documents", "site_audit_log", "site_rate_limits", "site_announcements", "site_settings"]) {
+  for (const table of ["site_login_tokens", "site_sessions", "site_grants", "site_document_groups", "site_data_migrations", "site_documents", "site_audit_log", "site_rate_limits", "site_announcements", "site_settings"]) {
     await connection.query(`CREATE TABLE "${table}" (LIKE public."${table}" INCLUDING ALL)`);
   }
   const isolatedPool = new pg.Pool({ connectionString: process.env.DATABASE_URL, max: 5, options: `-c search_path=${isolated}` });
+  // Simulate the pre-migration schema in this isolated synthetic schema only.
+  await connection.query("ALTER TABLE site_documents DROP CONSTRAINT IF EXISTS site_live_document_group");
+  const migrationIds: string[] = [];
+  for (const group of DEFAULT_GROUPS) for (const retired of [false, true]) {
+    const id = randomUUID(); migrationIds.push(id);
+    await connection.query(`INSERT INTO site_documents(id,title,section,year,type,external_url,uploaded_by,uploaded_by_name,retired_at)
+      VALUES ($1,'Synthetic migration fixture',$2,2025,'link','https://example.invalid/','synthetic-migration','Synthetic migration',$3)`,
+    [id, group.section, retired ? new Date("2025-01-01T00:00:00Z") : null]);
+  }
+  const migrationEvidence = await migrateDocumentGroups(isolatedPool);
+  const migrationAgain = await migrateDocumentGroups(isolatedPool);
+  assert.deepEqual(migrationAgain, migrationEvidence);
+  assert.equal(migrationEvidence.total, 10);
+  assert.equal(migrationEvidence.unassigned, 0);
+  assert.equal(migrationEvidence.originalAssignments.length, 10);
+  assert(migrationEvidence.groups.every((g: { total: number; live: number }) => g.total === 2 && g.live === 1));
+  const assigned = await connection.query("SELECT id,section,group_id FROM site_documents WHERE id=ANY($1::uuid[])", [migrationIds]);
+  assert.equal(assigned.rowCount, 10);
+  for (const row of assigned.rows) assert.equal(row.group_id, DEFAULT_GROUPS.find(g => g.section === row.section)!.id);
+  // Retain test fixtures/history, but remove live fixture cards from unrelated tests.
+  await connection.query("UPDATE site_documents SET retired_at=COALESCE(retired_at,now()) WHERE id=ANY($1::uuid[])", [migrationIds]);
   await installDatabaseProtections(isolatedPool);
   await installDatabaseProtections(isolatedPool);
   const testDb = drizzle(isolatedPool, { schema });
@@ -117,7 +140,7 @@ test("HWD foundation: isolated development security suite", async (t) => {
   const app = createApp(services);
   let addressCounter = 1;
   const ip = () => `198.51.100.${addressCounter++}`;
-  const base = { title: "Synthetic document", section: "shareholders", year: 2026,
+  const base = { title: "Synthetic document", groupId: DEFAULT_GROUPS[0].id, section: "shareholders", year: 2026,
     type: "pdf", sortOrder: 0, tags: ["test"], note: "Synthetic private note" };
   const pdf = Buffer.from("%PDF-1.7\n1 0 obj <</Type /Catalog>> endobj\n%%EOF\n");
   const link = async (email: string) => {
@@ -136,6 +159,26 @@ test("HWD foundation: isolated development security suite", async (t) => {
   };
   let adminCookie = "", memberCookie = "", editorCookie = "", documentId = "", replacementId = "";
   try {
+    await t.test("document-group startup migration preserves live/retired documents, assigns every section and is idempotent", async () => {
+      assert.equal(migrationEvidence.total, 10);
+      assert.equal(migrationEvidence.unassigned, 0);
+      assert.deepEqual(migrationAgain, migrationEvidence);
+      assert.equal((await testDb.select().from(dataMigrations)).length, 1);
+      // Exercise reversal inside a rolled-back transaction: original rows and retirement survive.
+      await connection.query("BEGIN");
+      try {
+        const before = await connection.query("SELECT id,section,year,retired_at,external_url FROM site_documents ORDER BY id");
+        await connection.query("ALTER TABLE site_documents DROP CONSTRAINT site_live_document_group");
+        await connection.query(`UPDATE site_documents d SET group_id = original.previous_group_id
+          FROM site_data_migrations m, jsonb_to_recordset(m.details->'originalAssignments')
+            AS original(id uuid, section text, previous_group_id uuid)
+          WHERE m.key='document-groups' AND d.id=original.id`);
+        assert.equal((await connection.query("SELECT count(*)::int AS n FROM site_documents WHERE group_id IS NULL")).rows[0].n, 10);
+        assert.deepEqual((await connection.query("SELECT id,section,year,retired_at,external_url FROM site_documents ORDER BY id")).rows, before.rows);
+      } finally { await connection.query("ROLLBACK"); }
+      await assert.rejects(connection.query(`INSERT INTO site_documents(title,section,type,external_url,uploaded_by,uploaded_by_name)
+        VALUES ('Synthetic invalid','governing','link','https://example.invalid','synthetic','Synthetic')`), /site_live_document_group/);
+    });
     await t.test("health is anonymous, enforcing headers; every private API refuses anonymous access", async () => {
       const health = await request(app).get("/api/healthz");
       assert.equal(health.status, 200); assert.match(health.headers["content-security-policy"], /default-src 'none'/);
@@ -293,6 +336,114 @@ test("HWD foundation: isolated development security suite", async (t) => {
       await request(app).get("/api/admin/grants").set("Cookie", editorCookie).expect(403);
       assert.equal(grant.body.endedAt, null);
     });
+    await t.test("groups: staff visibility withheld on server, guessed PDF refused, moves audited and non-empty retirement refused", async () => {
+      const input = { name: "Synthetic staff papers", description: "Staff-only synthetic fixture", layout: "list",
+        visibility: "staff", sortOrder: 20 };
+      await request(app).post("/api/admin/groups").set("Cookie", memberCookie).send(input).expect(403);
+      const created = await request(app).post("/api/admin/groups").set("Cookie", editorCookie).send(input).expect(201);
+      const group = created.body;
+      assert.equal(group.slug, "synthetic-staff-papers");
+      await request(app).post("/api/admin/groups").set("Cookie", adminCookie).send(input).expect(409);
+      const secret = await request(app).post("/api/documents/upload").set("Cookie", editorCookie)
+        .field("metadata", JSON.stringify({ ...base, groupId: group.id, title: "Synthetic staff confidential PDF" }))
+        .attach("file", pdf, "staff.pdf").expect(201);
+      const memberGroups = await request(app).get("/api/groups").set("Cookie", memberCookie).expect(200);
+      assert(!JSON.stringify(memberGroups.body).includes(group.id));
+      const memberDocs = await request(app).get("/api/documents").set("Cookie", memberCookie).expect(200);
+      assert(!JSON.stringify(memberDocs.body).includes(secret.body.id));
+      const filtered = await request(app).get(`/api/documents?groupId=${group.id}`).set("Cookie", memberCookie).expect(200);
+      assert.deepEqual(filtered.body, []);
+      await request(app).get(`/api/groups/${group.slug}`).set("Cookie", memberCookie).expect(404);
+      await request(app).get(`/api/documents/${secret.body.id}/open`).set("Cookie", memberCookie).expect(404);
+      await request(app).get(`/api/documents/${secret.body.id}/open`).expect(401);
+      await request(app).get(`/api/documents/${secret.body.id}/open`).set("Cookie", adminCookie).expect(200);
+      const staffDetail = await request(app).get(`/api/groups/${group.slug}`).set("Cookie", editorCookie).expect(200);
+      assert.equal(staffDetail.body.group.documentCount, 1);
+      assert.equal(staffDetail.body.group.latestTitle, "Synthetic staff confidential PDF");
+      assert.equal(staffDetail.body.documents[0].id, secret.body.id);
+      await request(app).get("/api/admin/home").set("Cookie", editorCookie).expect(403);
+      const defaults = await request(app).get("/api/admin/home").set("Cookie", adminCookie).expect(200);
+      assert.deepEqual(defaults.body.groupIds, DEFAULT_GROUPS.slice(0, 4).map(g => g.id));
+      await request(app).put("/api/admin/home").set("Cookie", adminCookie).send({ groupIds: DEFAULT_GROUPS.map(g => g.id) }).expect(400);
+      await request(app).put("/api/admin/home").set("Cookie", adminCookie).send({ groupIds: [group.id] }).expect(200);
+      const home = await request(app).get("/api/home").set("Cookie", memberCookie).expect(200);
+      assert.deepEqual(home.body.featuredGroups, []);
+      assert(!JSON.stringify(home.body).includes("Synthetic staff"));
+      assert.deepEqual(home.body.apps.map((item: { id: string }) => item.id), ["calendar", "roster"]);
+      await request(app).post(`/api/admin/groups/${group.id}/retire`).set("Cookie", adminCookie).expect(409);
+      await request(app).post("/api/documents/move").set("Cookie", memberCookie)
+        .send({ ids: [secret.body.id], groupId: DEFAULT_GROUPS[2].id }).expect(403);
+      await request(app).post("/api/documents/move").set("Cookie", editorCookie)
+        .send({ ids: [secret.body.id, randomUUID()], groupId: DEFAULT_GROUPS[2].id }).expect(409);
+      assert.equal((await testDb.select().from(documents).where(eq(documents.id, secret.body.id)))[0]!.groupId, group.id);
+      await request(app).post("/api/documents/move").set("Cookie", editorCookie)
+        .send({ ids: [secret.body.id], groupId: DEFAULT_GROUPS[2].id }).expect(200);
+      const events = await testDb.select().from(auditLog).where(and(eq(auditLog.action, "document-move"), eq(auditLog.targetId, secret.body.id)));
+      assert.equal(events.length, 1);
+      assert.match(events[0]!.description, new RegExp(group.id));
+      assert.equal(events[0]!.actorPersonId, "synthetic-editor");
+      const [moved] = await testDb.select().from(documents).where(eq(documents.id, secret.body.id));
+      assert.equal(moved!.section, "shareholders", "Legacy migration section must never be rewritten by a move");
+      await migrateDocumentGroups(isolatedPool);
+      assert.equal((await testDb.select().from(documents).where(eq(documents.id, secret.body.id)))[0]!.groupId,
+        DEFAULT_GROUPS[2].id, "Startup must not reassign a document moved after the migration");
+      await request(app).get(`/api/documents/${secret.body.id}/open`).set("Cookie", memberCookie).expect(200);
+      const edited = await request(app).patch(`/api/admin/groups/${group.id}`).set("Cookie", editorCookie)
+        .send({ ...input, name: "Renamed staff", slug: "renamed-staff", layout: "by_year", sortOrder: -1 }).expect(200);
+      assert.equal(edited.body.layout, "by_year");
+      await request(app).post(`/api/admin/groups/${group.id}/retire`).set("Cookie", editorCookie).expect(200);
+      await request(app).post("/api/documents").set("Cookie", editorCookie)
+        .send({ ...base, groupId: group.id, type: "link", externalUrl: "https://example.invalid" }).expect(400);
+      await request(app).get("/api/groups/renamed-staff").set("Cookie", editorCookie).expect(404);
+      assert((await testDb.select().from(documentGroups).where(eq(documentGroups.id, group.id)))[0]!.retiredAt);
+      await request(app).put("/api/admin/home").set("Cookie", adminCookie).send(defaults.body).expect(200);
+      await request(app).post(`/api/documents/${secret.body.id}/retire`).set("Cookie", editorCookie).expect(200);
+      await assert.rejects(connection.query("DELETE FROM site_document_groups"), /hard deletion is forbidden/);
+    });
+    await t.test("legacy HTML routes issue real HTTP 301s to matching groups", async () => {
+      const destinations = {
+        "/meetings": "/documents",
+        "/meetings/shareholders": "/documents/shareholders-meetings",
+        "/meetings/directors": "/documents/directors-meetings",
+        "/governing": "/documents/governing-docs-policies",
+        "/logging": "/documents/logging",
+        "/photo-archive": "/documents/photo-archive",
+      };
+      for (const [from, to] of Object.entries(destinations)) {
+        const response = await request(app).get(from).expect(301);
+        assert.equal(response.headers.location, to);
+      }
+    });
+    await t.test("group layouts sort by year or list order, require a live group, and do not invent legacy sections", async () => {
+      const input = { name: "Synthetic sort group", description: "", layout: "by_year", visibility: "everyone", sortOrder: 50 };
+      const group = (await request(app).post("/api/admin/groups").set("Cookie", editorCookie).send(input).expect(201)).body;
+      const ids: string[] = [];
+      for (const item of [
+        { title: "Zeta", year: 2025, sortOrder: 0 }, { title: "Beta", year: 2026, sortOrder: 2 },
+        { title: "Alpha", year: 2026, sortOrder: 2 }, { title: "Undated", year: null, sortOrder: -1 },
+      ]) {
+        const created = await request(app).post("/api/documents").set("Cookie", editorCookie).send({
+          ...item, groupId: group.id, type: "link", externalUrl: "https://example.invalid", tags: [], note: "",
+        }).expect(201);
+        assert.equal(created.body.section, null);
+        ids.push(created.body.id);
+      }
+      const yearly = await request(app).get(`/api/groups/${group.slug}`).set("Cookie", memberCookie).expect(200);
+      assert.deepEqual(yearly.body.documents.map((d: { title: string }) => d.title), ["Alpha", "Beta", "Zeta", "Undated"]);
+      await request(app).patch(`/api/admin/groups/${group.id}`).set("Cookie", editorCookie).send({ ...input, layout: "list" }).expect(200);
+      const list = await request(app).get(`/api/groups/${group.slug}`).set("Cookie", memberCookie).expect(200);
+      assert.deepEqual(list.body.documents.map((d: { title: string }) => d.title), ["Undated", "Zeta", "Alpha", "Beta"]);
+      const missingGroup = { title: "Synthetic missing group", type: "link", externalUrl: "https://example.invalid", sortOrder: 0, tags: [], note: "" };
+      await request(app).post("/api/documents").set("Cookie", editorCookie).send(missingGroup).expect(400);
+      await request(app).post("/api/documents").set("Cookie", editorCookie).send({ ...missingGroup, groupId: randomUUID() }).expect(400);
+      await request(app).patch(`/api/admin/groups/${group.id}`).set("Cookie", editorCookie).send({ ...input, visibility: "staff" }).expect(200);
+      await request(app).get(`/api/groups/${group.slug}`).set("Cookie", memberCookie).expect(404);
+      for (const id of ids) await request(app).get(`/api/documents/${id}/open`).set("Cookie", memberCookie).expect(404);
+      for (const id of ids) await request(app).post(`/api/documents/${id}/retire`).set("Cookie", editorCookie).expect(200);
+      await request(app).post(`/api/admin/groups/${group.id}/retire`).set("Cookie", editorCookie).expect(200);
+      const history = await request(app).get("/api/documents?includeRetired=true").set("Cookie", editorCookie).expect(200);
+      assert(ids.every(id => history.body.some((d: { id: string }) => d.id === id)), "Retired group documents remain in staff history");
+    });
     await t.test("PDF signature, section/year and URL validation; missing files refused", async () => {
       await request(app).post("/api/documents/upload").set("Cookie", editorCookie)
         .field("metadata", JSON.stringify(base)).attach("file", Buffer.from("not pdf"), "fake.pdf").expect(400);
@@ -319,6 +470,7 @@ test("HWD foundation: isolated development security suite", async (t) => {
       assert.equal(events.length, 1);
     });
     await t.test("edit metadata, replacement retains old record/file and hides it; retire never deletes", async () => {
+      const storedBefore = files.size;
       await request(app).patch(`/api/documents/${documentId}`).set("Cookie", editorCookie).send({ ...base, title: "Updated synthetic title" }).expect(200);
       const replaced = await request(app).post(`/api/documents/${documentId}/replace`).set("Cookie", editorCookie)
         .field("metadata", JSON.stringify(base)).attach("file", pdf, "new.pdf").expect(201);
@@ -326,7 +478,10 @@ test("HWD foundation: isolated development security suite", async (t) => {
       const listed = await request(app).get("/api/documents").set("Cookie", memberCookie).expect(200);
       assert(!listed.body.some((d: { id: string }) => d.id === documentId));
       await request(app).get(`/api/documents/${documentId}/open`).set("Cookie", memberCookie).expect(404);
-      assert.equal(files.size, 2);
+      assert.equal(files.size, storedBefore + 1);
+      const versions = await testDb.select().from(documents).where(inArray(documents.id, [documentId, replacementId]));
+      assert.equal(versions.length, 2);
+      assert(versions.every(doc => files.has(doc.storageKey!)), "Both prior and replacement private files retained");
       await request(app).post(`/api/documents/${replacementId}/retire`).set("Cookie", editorCookie).expect(200);
       const [row] = await testDb.select().from(documents).where(eq(documents.id, replacementId)); assert(row!.retiredAt);
     });
@@ -681,7 +836,7 @@ test("HWD foundation: isolated development security suite", async (t) => {
         const [notUsed] = await testDb.select().from(loginTokens).where(eq(loginTokens.hash, hashToken(token)));
         assert.equal(notUsed!.usedAt, null, "GET page and JS gate must not consume token");
         await page.getByTestId("button-continue").click();
-        await page.getByTestId("link-nav-meetings").waitFor();
+        await page.getByTestId("link-nav-documents").waitFor();
         assert.equal(await page.getByTestId("link-nav-admin").count(), 1, "back-door administrator sees Admin");
         console.info("Browser: submitted admin back-door sign-in; console link; Continue click signed in");
         await page.reload();
@@ -745,7 +900,7 @@ test("HWD foundation: isolated development security suite", async (t) => {
         await page.getByText("Visible browser test note", { exact: true }).waitFor();
         await page.screenshot({ path: "../../generated-artifacts/hwd-desktop-members.jpg", fullPage: true });
         await page.goto(`${origin}/`);
-        await page.getByTestId("link-nav-meetings").waitFor();
+        await page.getByTestId("link-nav-documents").waitFor();
         await page.waitForFunction(() =>
           document.querySelector('[data-testid="link-nav-calendar"]')?.getAttribute("href") === "https://calendar.hwdfarm.com",
         );
@@ -803,8 +958,8 @@ test("HWD foundation: isolated development security suite", async (t) => {
         console.info("Browser: Admin Announcements, Home notice, Apps, People and Audit pages loaded; forms exercised");
         await page.setViewportSize({ width: 390, height: 844 });
         await page.getByTestId("button-menu").click();
-        await page.getByTestId("link-nav-meetings").filter({ visible: true }).click();
-        await page.getByRole("heading", { name: "Meetings", exact: true }).waitFor();
+        await page.getByTestId("link-nav-documents").filter({ visible: true }).click();
+        await page.getByRole("heading", { name: "Documents", exact: true }).waitFor();
         const overflow = await page.evaluate(() => document.documentElement.scrollWidth > innerWidth);
         assert.equal(overflow, false, "Phone layout must not overflow");
         await page.screenshot({ path: "../../generated-artifacts/hwd-phone-meetings.jpg", fullPage: true });
@@ -817,7 +972,7 @@ test("HWD foundation: isolated development security suite", async (t) => {
         await page.getByTestId(`row-document-${replaced.id}`).waitFor();
         await page.getByTestId("button-menu").click();
         await page.getByTestId("button-sign-out-mobile").click();
-        await page.getByTestId("input-email").waitFor();
+        await page.getByRole("heading", { name: "You’re signed out of the Farm site" }).waitFor();
         console.info("Browser: phone menu, no overflow, retire/history and sign-out verified");
         assert.deepEqual(errors, [], "No uncaught browser exceptions");
       } finally {

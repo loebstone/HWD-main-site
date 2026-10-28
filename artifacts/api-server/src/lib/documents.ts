@@ -2,11 +2,13 @@ import { CreateLinkDocumentBody } from "@workspace/api-zod";
 import { documents, type db, type SiteIdentity } from "@workspace/db";
 import { audit } from "./audit";
 import type { Services } from "./services";
+import { lockLiveGroup } from "./document-groups";
 
 // Manual uploads and the old-site importer share validation, private storage, creation and audit.
-export async function insertNewDocument(s: Services, writer: Pick<typeof db, "insert">,
+export async function insertNewDocument(s: Services, writer: Pick<typeof db, "insert" | "select" | "update">,
   actor: SiteIdentity, address: string, input: unknown, bytes?: Buffer, legacySheetId?: string) {
   const meta = documentMetadata(input);
+  await lockLiveGroup(writer, meta.groupId);
   if (meta.type === "pdf" && (!bytes || !validPdf(bytes))) throw new Error("Invalid PDF signature or file over 50 MB");
   const storageKey = meta.type === "pdf" ? await s.storage.save(bytes!) : null;
   const [doc] = await writer.insert(documents).values({ ...meta, storageKey, legacySheetId,
@@ -19,14 +21,14 @@ export function documentMetadata(value: unknown) {
   const data = CreateLinkDocumentBody.parse(value);
   data.title = data.title.trim();
   if (!data.title) throw new Error("Invalid document metadata");
-  if (["shareholders", "directors"].includes(data.section) && data.year == null) throw new Error("Year is required");
+  if (data.section && ["shareholders", "directors"].includes(data.section) && data.year == null) throw new Error("Year is required");
   if (data.type === "link") {
     if (!data.externalUrl) throw new Error("External URL is required");
     const url = new URL(data.externalUrl);
     if (!["https:", "http:"].includes(url.protocol) || url.username || url.password) throw new Error("Invalid external URL");
     data.externalUrl = url.href;
   } else data.externalUrl = null;
-  return { ...data, year: data.year ?? null, externalUrl: data.externalUrl ?? null };
+  return { ...data, section: data.section ?? null, year: data.year ?? null, externalUrl: data.externalUrl ?? null };
 }
 export function validPdf(buffer: Buffer): boolean {
   return buffer.length <= 50 * 1024 * 1024 &&

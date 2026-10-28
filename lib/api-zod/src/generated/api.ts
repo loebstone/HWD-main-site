@@ -101,10 +101,26 @@ export const getHomeResponseAppsItemUrlMax = 2048;
 
 export const GetHomeResponse = zod.object({
   "documentCount": zod.number().int(),
+  "featuredGroups": zod.array(zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "description": zod.string(),
+  "sortOrder": zod.number().int(),
+  "layout": zod.enum(['list', 'by_year']),
+  "visibility": zod.enum(['everyone', 'staff']),
+  "createdBy": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "retiredAt": zod.coerce.date().nullable(),
+  "documentCount": zod.number().int(),
+  "latestTitle": zod.string().nullable(),
+  "latestDate": zod.coerce.date().nullable()
+})),
   "recentDocuments": zod.array(zod.object({
   "id": zod.string(),
+  "groupId": zod.string(),
   "title": zod.string(),
-  "section": zod.enum(['shareholders', 'directors', 'governing', 'logging', 'photo_archive']),
+  "section": zod.union([zod.literal('shareholders'),zod.literal('directors'),zod.literal('governing'),zod.literal('logging'),zod.literal('photo_archive'),zod.literal(null)]).nullable(),
   "year": zod.number().int().nullable(),
   "type": zod.enum(['pdf', 'link']),
   "externalUrl": zod.string().nullable(),
@@ -141,15 +157,196 @@ export const GetHomeResponse = zod.object({
 })
 
 
+export const ListDocumentGroupsResponseItem = zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "description": zod.string(),
+  "sortOrder": zod.number().int(),
+  "layout": zod.enum(['list', 'by_year']),
+  "visibility": zod.enum(['everyone', 'staff']),
+  "createdBy": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "retiredAt": zod.coerce.date().nullable(),
+  "documentCount": zod.number().int(),
+  "latestTitle": zod.string().nullable(),
+  "latestDate": zod.coerce.date().nullable()
+})
+export const ListDocumentGroupsResponse = zod.array(ListDocumentGroupsResponseItem)
+
+
+export const GetDocumentGroupParams = zod.object({
+  "slug": zod.coerce.string()
+})
+
+export const GetDocumentGroupResponse = zod.object({
+  "group": zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "description": zod.string(),
+  "sortOrder": zod.number().int(),
+  "layout": zod.enum(['list', 'by_year']),
+  "visibility": zod.enum(['everyone', 'staff']),
+  "createdBy": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "retiredAt": zod.coerce.date().nullable(),
+  "documentCount": zod.number().int(),
+  "latestTitle": zod.string().nullable(),
+  "latestDate": zod.coerce.date().nullable()
+}),
+  "documents": zod.array(zod.object({
+  "id": zod.string(),
+  "groupId": zod.string(),
+  "title": zod.string(),
+  "section": zod.union([zod.literal('shareholders'),zod.literal('directors'),zod.literal('governing'),zod.literal('logging'),zod.literal('photo_archive'),zod.literal(null)]).nullable(),
+  "year": zod.number().int().nullable(),
+  "type": zod.enum(['pdf', 'link']),
+  "externalUrl": zod.string().nullable(),
+  "sortOrder": zod.number().int(),
+  "tags": zod.array(zod.string()),
+  "note": zod.string(),
+  "uploadedBy": zod.string(),
+  "uploadedByName": zod.string(),
+  "uploadedAt": zod.coerce.date(),
+  "retiredAt": zod.coerce.date().nullable(),
+  "replaces": zod.string().nullable()
+}))
+})
+
+
+export const createDocumentGroupBodyNameMax = 150;
+
+export const createDocumentGroupBodySlugMax = 180;
+
+export const createDocumentGroupBodyDescriptionMax = 500;
+
+
+
+export const CreateDocumentGroupBody = zod.object({
+  "name": zod.string().min(1).max(createDocumentGroupBodyNameMax),
+  "slug": zod.string().max(createDocumentGroupBodySlugMax).optional(),
+  "description": zod.string().max(createDocumentGroupBodyDescriptionMax),
+  "sortOrder": zod.number().int(),
+  "layout": zod.enum(['list', 'by_year']),
+  "visibility": zod.enum(['everyone', 'staff'])
+})
+
+export const CreateDocumentGroupResponse = zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "description": zod.string(),
+  "sortOrder": zod.number().int(),
+  "layout": zod.enum(['list', 'by_year']),
+  "visibility": zod.enum(['everyone', 'staff']),
+  "createdBy": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "retiredAt": zod.coerce.date().nullable(),
+  "documentCount": zod.number().int(),
+  "latestTitle": zod.string().nullable(),
+  "latestDate": zod.coerce.date().nullable()
+})
+
+
+export const UpdateDocumentGroupParams = zod.object({
+  "id": zod.coerce.string().uuid()
+})
+
+export const updateDocumentGroupBodyNameMax = 150;
+
+export const updateDocumentGroupBodySlugMax = 180;
+
+export const updateDocumentGroupBodyDescriptionMax = 500;
+
+
+
+export const UpdateDocumentGroupBody = zod.object({
+  "name": zod.string().min(1).max(updateDocumentGroupBodyNameMax),
+  "slug": zod.string().max(updateDocumentGroupBodySlugMax).optional(),
+  "description": zod.string().max(updateDocumentGroupBodyDescriptionMax),
+  "sortOrder": zod.number().int(),
+  "layout": zod.enum(['list', 'by_year']),
+  "visibility": zod.enum(['everyone', 'staff'])
+})
+
+export const UpdateDocumentGroupResponse = zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "description": zod.string(),
+  "sortOrder": zod.number().int(),
+  "layout": zod.enum(['list', 'by_year']),
+  "visibility": zod.enum(['everyone', 'staff']),
+  "createdBy": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "retiredAt": zod.coerce.date().nullable(),
+  "documentCount": zod.number().int(),
+  "latestTitle": zod.string().nullable(),
+  "latestDate": zod.coerce.date().nullable()
+})
+
+
+export const RetireDocumentGroupParams = zod.object({
+  "id": zod.coerce.string().uuid()
+})
+
+export const RetireDocumentGroupResponse = zod.object({
+  "message": zod.string()
+})
+
+
+export const moveDocumentsBodyIdsMax = 500;
+
+
+
+export const MoveDocumentsBody = zod.object({
+  "ids": zod.array(zod.string().uuid()).min(1).max(moveDocumentsBodyIdsMax),
+  "groupId": zod.string().uuid()
+})
+
+export const MoveDocumentsResponse = zod.object({
+  "message": zod.string()
+})
+
+
+export const getHomeGroupsResponseGroupIdsMax = 4;
+
+
+
+export const GetHomeGroupsResponse = zod.object({
+  "groupIds": zod.array(zod.string().uuid()).max(getHomeGroupsResponseGroupIdsMax)
+})
+
+
+export const updateHomeGroupsBodyGroupIdsMax = 4;
+
+
+
+export const UpdateHomeGroupsBody = zod.object({
+  "groupIds": zod.array(zod.string().uuid()).max(updateHomeGroupsBodyGroupIdsMax)
+})
+
+export const updateHomeGroupsResponseGroupIdsMax = 4;
+
+
+
+export const UpdateHomeGroupsResponse = zod.object({
+  "groupIds": zod.array(zod.string().uuid()).max(updateHomeGroupsResponseGroupIdsMax)
+})
+
+
 export const ListDocumentsQueryParams = zod.object({
   "section": zod.enum(['shareholders', 'directors', 'governing', 'logging', 'photo_archive']).optional(),
-  "includeRetired": zod.coerce.boolean().optional()
+  "includeRetired": zod.coerce.boolean().optional(),
+  "groupId": zod.coerce.string().uuid().optional()
 })
 
 export const ListDocumentsResponseItem = zod.object({
   "id": zod.string(),
+  "groupId": zod.string(),
   "title": zod.string(),
-  "section": zod.enum(['shareholders', 'directors', 'governing', 'logging', 'photo_archive']),
+  "section": zod.union([zod.literal('shareholders'),zod.literal('directors'),zod.literal('governing'),zod.literal('logging'),zod.literal('photo_archive'),zod.literal(null)]).nullable(),
   "year": zod.number().int().nullable(),
   "type": zod.enum(['pdf', 'link']),
   "externalUrl": zod.string().nullable(),
@@ -182,7 +379,8 @@ export const createLinkDocumentBodyNoteMax = 2000;
 
 export const CreateLinkDocumentBody = zod.object({
   "title": zod.string().min(1).max(createLinkDocumentBodyTitleMax),
-  "section": zod.enum(['shareholders', 'directors', 'governing', 'logging', 'photo_archive']),
+  "groupId": zod.string().uuid(),
+  "section": zod.union([zod.literal('shareholders'),zod.literal('directors'),zod.literal('governing'),zod.literal('logging'),zod.literal('photo_archive'),zod.literal(null)]).nullish(),
   "year": zod.number().int().min(createLinkDocumentBodyYearMin).max(createLinkDocumentBodyYearMax).nullish(),
   "type": zod.enum(['pdf', 'link']),
   "externalUrl": zod.string().max(createLinkDocumentBodyExternalUrlMax).nullish(),
@@ -193,8 +391,9 @@ export const CreateLinkDocumentBody = zod.object({
 
 export const CreateLinkDocumentResponse = zod.object({
   "id": zod.string(),
+  "groupId": zod.string(),
   "title": zod.string(),
-  "section": zod.enum(['shareholders', 'directors', 'governing', 'logging', 'photo_archive']),
+  "section": zod.union([zod.literal('shareholders'),zod.literal('directors'),zod.literal('governing'),zod.literal('logging'),zod.literal('photo_archive'),zod.literal(null)]).nullable(),
   "year": zod.number().int().nullable(),
   "type": zod.enum(['pdf', 'link']),
   "externalUrl": zod.string().nullable(),
@@ -216,8 +415,9 @@ export const UploadDocumentBody = zod.object({
 
 export const UploadDocumentResponse = zod.object({
   "id": zod.string(),
+  "groupId": zod.string(),
   "title": zod.string(),
-  "section": zod.enum(['shareholders', 'directors', 'governing', 'logging', 'photo_archive']),
+  "section": zod.union([zod.literal('shareholders'),zod.literal('directors'),zod.literal('governing'),zod.literal('logging'),zod.literal('photo_archive'),zod.literal(null)]).nullable(),
   "year": zod.number().int().nullable(),
   "type": zod.enum(['pdf', 'link']),
   "externalUrl": zod.string().nullable(),
@@ -253,7 +453,8 @@ export const updateDocumentBodyNoteMax = 2000;
 
 export const UpdateDocumentBody = zod.object({
   "title": zod.string().min(1).max(updateDocumentBodyTitleMax),
-  "section": zod.enum(['shareholders', 'directors', 'governing', 'logging', 'photo_archive']),
+  "groupId": zod.string().uuid(),
+  "section": zod.union([zod.literal('shareholders'),zod.literal('directors'),zod.literal('governing'),zod.literal('logging'),zod.literal('photo_archive'),zod.literal(null)]).nullish(),
   "year": zod.number().int().min(updateDocumentBodyYearMin).max(updateDocumentBodyYearMax).nullish(),
   "type": zod.enum(['pdf', 'link']),
   "externalUrl": zod.string().max(updateDocumentBodyExternalUrlMax).nullish(),
@@ -264,8 +465,9 @@ export const UpdateDocumentBody = zod.object({
 
 export const UpdateDocumentResponse = zod.object({
   "id": zod.string(),
+  "groupId": zod.string(),
   "title": zod.string(),
-  "section": zod.enum(['shareholders', 'directors', 'governing', 'logging', 'photo_archive']),
+  "section": zod.union([zod.literal('shareholders'),zod.literal('directors'),zod.literal('governing'),zod.literal('logging'),zod.literal('photo_archive'),zod.literal(null)]).nullable(),
   "year": zod.number().int().nullable(),
   "type": zod.enum(['pdf', 'link']),
   "externalUrl": zod.string().nullable(),
@@ -291,8 +493,9 @@ export const ReplaceDocumentBody = zod.object({
 
 export const ReplaceDocumentResponse = zod.object({
   "id": zod.string(),
+  "groupId": zod.string(),
   "title": zod.string(),
-  "section": zod.enum(['shareholders', 'directors', 'governing', 'logging', 'photo_archive']),
+  "section": zod.union([zod.literal('shareholders'),zod.literal('directors'),zod.literal('governing'),zod.literal('logging'),zod.literal('photo_archive'),zod.literal(null)]).nullable(),
   "year": zod.number().int().nullable(),
   "type": zod.enum(['pdf', 'link']),
   "externalUrl": zod.string().nullable(),
@@ -510,7 +713,7 @@ export const listAuditLogQueryPersonIdMax = 100;
 export const ListAuditLogQueryParams = zod.object({
   "page": zod.coerce.number().int().min(1).default(listAuditLogQueryPageDefault),
   "personId": zod.coerce.string().max(listAuditLogQueryPersonIdMax).optional(),
-  "action": zod.enum(['sign-in', 'sign-out', 'document-open', 'document-upload', 'document-replace', 'document-retire', 'grant-create', 'grant-end', 'announcement-create', 'announcement-edit', 'announcement-retire', 'notice-edit', 'apps-edit', 'import']).optional()
+  "action": zod.enum(['sign-in', 'sign-out', 'document-open', 'document-upload', 'document-replace', 'document-retire', 'document-edit', 'document-move', 'group-create', 'group-edit', 'group-retire', 'home-edit', 'grant-create', 'grant-end', 'announcement-create', 'announcement-edit', 'announcement-retire', 'notice-edit', 'apps-edit', 'import']).optional()
 })
 
 export const ListAuditLogResponse = zod.object({
@@ -519,7 +722,7 @@ export const ListAuditLogResponse = zod.object({
   "at": zod.coerce.date(),
   "actorPersonId": zod.string(),
   "actorName": zod.string(),
-  "action": zod.enum(['sign-in', 'sign-out', 'document-open', 'document-upload', 'document-replace', 'document-retire', 'grant-create', 'grant-end', 'announcement-create', 'announcement-edit', 'announcement-retire', 'notice-edit', 'apps-edit', 'import']),
+  "action": zod.enum(['sign-in', 'sign-out', 'document-open', 'document-upload', 'document-replace', 'document-retire', 'document-edit', 'document-move', 'group-create', 'group-edit', 'group-retire', 'home-edit', 'grant-create', 'grant-end', 'announcement-create', 'announcement-edit', 'announcement-retire', 'notice-edit', 'apps-edit', 'import']),
   "targetId": zod.string().nullable(),
   "description": zod.string(),
   "visitorAddress": zod.string()

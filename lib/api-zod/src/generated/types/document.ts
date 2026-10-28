@@ -6,12 +6,13 @@
  * OpenAPI spec version: 1.0.0
  */
 import type { DocumentType } from './documentType';
-import type { Section } from './section';
+import type { LegacySection } from './legacySection';
 
 export interface Document {
   id: string;
+  groupId: string;
   title: string;
-  section: Section;
+  section: LegacySection | null;
   /** @nullable */
   year: number | null;
   type: DocumentType;

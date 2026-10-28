@@ -121,12 +121,112 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/HomeSummary" }
+  /groups:
+    get:
+      operationId: listDocumentGroups
+      responses:
+        "200":
+          description: Only groups visible to this identity, with live summaries
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: "#/components/schemas/DocumentGroup" } }
+  /groups/{slug}:
+    get:
+      operationId: getDocumentGroup
+      parameters:
+        - { name: slug, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: Group and visible live documents
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/GroupDocuments" }
+        "404": { description: Missing or not visible }
+  /admin/groups:
+    post:
+      operationId: createDocumentGroup
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/GroupInput" }
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DocumentGroup" }
+  /admin/groups/{id}:
+    patch:
+      operationId: updateDocumentGroup
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/GroupInput" }
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DocumentGroup" }
+  /admin/groups/{id}/retire:
+    post:
+      operationId: retireDocumentGroup
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        "200":
+          description: Retired
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Message" }
+        "409": { description: Group still holds live documents }
+  /documents/move:
+    post:
+      operationId: moveDocuments
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/DocumentMoveInput" }
+      responses:
+        "200":
+          description: Moved atomically and audited
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Message" }
+  /admin/home:
+    get:
+      operationId: getHomeGroups
+      responses:
+        "200":
+          description: Featured group selection
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/HomeGroups" }
+    put:
+      operationId: updateHomeGroups
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/HomeGroups" }
+      responses:
+        "200":
+          description: Saved
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/HomeGroups" }
   /documents:
     get:
       operationId: listDocuments
       parameters:
         - { name: section, in: query, schema: { $ref: "#/components/schemas/Section" } }
         - { name: includeRetired, in: query, schema: { type: boolean } }
+        - { name: groupId, in: query, schema: { type: string, format: uuid } }
       responses:
         "200":
           description: Documents
@@ -461,12 +561,60 @@ components:
     Section:
       type: string
       enum: [shareholders, directors, governing, logging, photo_archive]
+    LegacySection:
+      type: [string, "null"]
+      enum: [shareholders, directors, governing, logging, photo_archive, null]
+    GroupInput:
+      type: object
+      required: [name, description, sortOrder, layout, visibility]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 150 }
+        slug: { type: string, maxLength: 180 }
+        description: { type: string, maxLength: 500 }
+        sortOrder: { type: integer }
+        layout: { type: string, enum: [list, by_year] }
+        visibility: { type: string, enum: [everyone, staff] }
+    DocumentGroup:
+      type: object
+      required: [id, name, slug, description, sortOrder, layout, visibility, createdBy, createdAt, retiredAt, documentCount, latestTitle, latestDate]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        slug: { type: string }
+        description: { type: string }
+        sortOrder: { type: integer }
+        layout: { type: string, enum: [list, by_year] }
+        visibility: { type: string, enum: [everyone, staff] }
+        createdBy: { type: string }
+        createdAt: { type: string, format: date-time }
+        retiredAt: { type: ["string", "null"], format: date-time }
+        documentCount: { type: integer }
+        latestTitle: { type: ["string", "null"] }
+        latestDate: { type: ["string", "null"], format: date-time }
+    GroupDocuments:
+      type: object
+      required: [group, documents]
+      properties:
+        group: { $ref: "#/components/schemas/DocumentGroup" }
+        documents: { type: array, items: { $ref: "#/components/schemas/Document" } }
+    DocumentMoveInput:
+      type: object
+      required: [ids, groupId]
+      properties:
+        ids: { type: array, minItems: 1, maxItems: 500, items: { type: string, format: uuid } }
+        groupId: { type: string, format: uuid }
+    HomeGroups:
+      type: object
+      required: [groupIds]
+      properties:
+        groupIds: { type: array, maxItems: 4, items: { type: string, format: uuid } }
     DocumentInput:
       type: object
-      required: [title, section, type, sortOrder, tags, note]
+      required: [title, groupId, type, sortOrder, tags, note]
       properties:
         title: { type: string, minLength: 1, maxLength: 250 }
-        section: { $ref: "#/components/schemas/Section" }
+        groupId: { type: string, format: uuid }
+        section: { $ref: "#/components/schemas/LegacySection" }
         year: { type: ["integer", "null"], minimum: 1800, maximum: 2200 }
         type: { type: string, enum: [pdf, link] }
         externalUrl: { type: ["string", "null"], maxLength: 2048 }
@@ -481,11 +629,12 @@ components:
         file: { type: string, format: binary }
     Document:
       type: object
-      required: [id, title, section, year, type, externalUrl, sortOrder, tags, note, uploadedBy, uploadedByName, uploadedAt, retiredAt, replaces]
+      required: [id, title, groupId, section, year, type, externalUrl, sortOrder, tags, note, uploadedBy, uploadedByName, uploadedAt, retiredAt, replaces]
       properties:
         id: { type: string }
+        groupId: { type: string }
         title: { type: string }
-        section: { $ref: "#/components/schemas/Section" }
+        section: { $ref: "#/components/schemas/LegacySection" }
         year: { type: ["integer", "null"] }
         type: { type: string, enum: [pdf, link] }
         externalUrl: { type: ["string", "null"] }
@@ -499,9 +648,10 @@ components:
         replaces: { type: ["string", "null"] }
     HomeSummary:
       type: object
-      required: [documentCount, recentDocuments, notice, reminders, apps]
+      required: [documentCount, recentDocuments, notice, reminders, apps, featuredGroups]
       properties:
         documentCount: { type: integer }
+        featuredGroups: { type: array, items: { $ref: "#/components/schemas/DocumentGroup" } }
         recentDocuments: { type: array, items: { $ref: "#/components/schemas/Document" } }
         notice: { $ref: "#/components/schemas/HomeNotice" }
         reminders: { type: array, items: { $ref: "#/components/schemas/Announcement" } }
@@ -582,7 +732,7 @@ components:
         hideAfter: { type: string, format: date }
     AuditAction:
       type: string
-      enum: [sign-in, sign-out, document-open, document-upload, document-replace, document-retire, grant-create, grant-end, announcement-create, announcement-edit, announcement-retire, notice-edit, apps-edit, import]
+      enum: [sign-in, sign-out, document-open, document-upload, document-replace, document-retire, document-edit, document-move, group-create, group-edit, group-retire, home-edit, grant-create, grant-end, announcement-create, announcement-edit, announcement-retire, notice-edit, apps-edit, import]
     AuditEntry:
       type: object
       required: [id, at, actorPersonId, actorName, action, targetId, description, visitorAddress]

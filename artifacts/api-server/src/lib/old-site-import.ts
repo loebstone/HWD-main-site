@@ -9,6 +9,7 @@ import { announcementInputSchema } from "./site-content";
 import { fetchGoogle, fetchOldSitePdf, googleUrl, OLD_SITE_INDEX, parseOldSiteCsv, type SheetRow } from "./old-site-fetch";
 import { logger } from "./logger";
 import type { Services } from "./services";
+import { DEFAULT_GROUPS } from "../migrate-document-groups";
 
 export const IMPORT_SETTING = "old-site-import-last-run";
 const LEASE_MS = 120_000;
@@ -52,10 +53,12 @@ export function planOldSiteRow(row: SheetRow, now: Date) {
   }
   const sortOrder = /^-?\d+$/.test(row.sort_order ?? "") && Number.isSafeInteger(Number(row.sort_order))
     ? Number(row.sort_order) : 1;
-  const meta = documentMetadata({ title, section: mappedSection, year, type: type === "link" ? "link" : "pdf",
+  const group = DEFAULT_GROUPS.find(group => group.section === mappedSection);
+  if (!group) throw new Error("unsupported document section");
+  const meta = documentMetadata({ title, groupId: group.id, section: mappedSection, year, type: type === "link" ? "link" : "pdf",
     externalUrl: type === "link" ? url!.href : null, sortOrder,
     tags: (row.tags ?? "").split(",").map(tag => tag.trim()).filter(Boolean), note: row.supporting_text ?? "" });
-  if (type === "link") return { kind: "document" as const, section: meta.section, meta, fetchUrl: null, confirm: false,
+  if (type === "link") return { kind: "document" as const, section: group.section, meta, fetchUrl: null, confirm: false,
     reason: "Link document; supporting text preserved as note" };
   // IDs come only from explicitly Google-hosted source URLs, never an arbitrary server URL.
   let id: string | null = null;
@@ -71,7 +74,7 @@ export function planOldSiteRow(row: SheetRow, now: Date) {
   const fetchUrl = type === "google_doc" ? `https://docs.google.com/document/d/${id}/export?format=pdf`
     : type === "google_sheet" ? `https://docs.google.com/spreadsheets/d/${id}/export?format=pdf`
     : `https://drive.google.com/uc?export=download&id=${id}`;
-  return { kind: "document" as const, section: meta.section, meta, fetchUrl, confirm: type === "pdf",
+  return { kind: "document" as const, section: group.section, meta, fetchUrl, confirm: type === "pdf",
     reason: "Signature-validated PDF in private storage" };
 }
 

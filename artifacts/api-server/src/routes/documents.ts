@@ -1,13 +1,14 @@
 import { Router } from "express";
 import multer from "multer";
 import { pipeline } from "node:stream/promises";
-import { and, asc, desc, eq, isNull } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNull } from "drizzle-orm";
 import { z } from "zod";
 import { documents } from "@workspace/db";
 import { documentMetadata, insertNewDocument, publicDocument, validPdf } from "../lib/documents";
 import { audit } from "../lib/audit";
 import { requireEditor, visitorAddress } from "../middlewares/security";
 import type { Services } from "../lib/services";
+import { GroupError, lockLiveGroup, visibleDocumentFilter } from "../lib/document-groups";
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 50 * 1024 * 1024, files: 1, fields: 1, fieldSize: 32_768 } }).single("file");
 const idOf = (id: unknown) => z.string().uuid().parse(id);
@@ -16,15 +17,18 @@ export function documentRoutes(s: Services) {
   router.get("/", async (req, res): Promise<void> => {
     const section = z.enum(["shareholders", "directors", "governing", "logging", "photo_archive"]).optional().parse(req.query.section);
     const includeRetired = req.query.includeRetired === "true";
+    const groupId = z.string().uuid().optional().parse(req.query.groupId);
     if (includeRetired && req.siteIdentity!.role === "member") { res.status(403).json({ error: "Editor access required" }); return; }
     const rows = await s.db.select().from(documents).where(and(
+      visibleDocumentFilter(s, req.siteIdentity!.role, includeRetired), groupId ? eq(documents.groupId, groupId) : undefined,
       section ? eq(documents.section, section) : undefined, includeRetired ? undefined : isNull(documents.retiredAt)))
       .orderBy(desc(documents.year), asc(documents.sortOrder), asc(documents.title));
     res.json(rows.map(publicDocument));
   });
   router.get("/:id/open", async (req, res): Promise<void> => {
     const id = idOf(req.params.id);
-    const [doc] = await s.db.select().from(documents).where(and(eq(documents.id, id), isNull(documents.retiredAt)));
+    const [doc] = await s.db.select().from(documents).where(and(eq(documents.id, id), isNull(documents.retiredAt),
+      visibleDocumentFilter(s, req.siteIdentity!.role)));
     if (!doc) { res.status(404).json({ error: "Document not found" }); return; }
     res.setHeader("Cache-Control", "no-store");
     res.setHeader("Referrer-Policy", "no-referrer");
@@ -42,6 +46,20 @@ export function documentRoutes(s: Services) {
     try { await pipeline(stream, res); } catch { if (!res.headersSent) res.status(503).end(); else res.destroy(); }
   });
   router.use(requireEditor);
+  router.post("/move", async (req, res) => {
+    const input = z.object({ ids: z.array(z.string().uuid()).min(1).max(500), groupId: z.string().uuid() }).parse(req.body);
+    const ids = [...new Set(input.ids)].sort();
+    await s.db.transaction(async tx => {
+      const group = await lockLiveGroup(tx, input.groupId);
+      const rows = await tx.select().from(documents).where(and(inArray(documents.id, ids), isNull(documents.retiredAt)))
+        .orderBy(asc(documents.id)).for("update");
+      if (rows.length !== ids.length) throw new GroupError("One or more documents are missing or retired", 409);
+      await tx.update(documents).set({ groupId: input.groupId }).where(inArray(documents.id, ids));
+      for (const row of rows) await audit(tx, req.siteIdentity!, "document-move", row.id,
+        `Moved document from ${row.groupId} to ${group.id}: ${group.name}`, visitorAddress(req));
+    });
+    res.json({ message: `Moved ${ids.length} document${ids.length === 1 ? "" : "s"}` });
+  });
   router.post("/", async (req, res): Promise<void> => {
     const meta = documentMetadata(req.body);
     if (meta.type !== "link") { res.status(400).json({ error: "Use PDF upload for file documents" }); return; }
@@ -60,10 +78,13 @@ export function documentRoutes(s: Services) {
     const id = idOf(req.params.id);
     const meta = documentMetadata(req.body);
     const updated = await s.db.transaction(async tx => {
+      await lockLiveGroup(tx, meta.groupId);
       const [current] = await tx.select().from(documents).where(and(eq(documents.id, id), isNull(documents.retiredAt))).for("update");
       if (!current) return null;
       if (meta.type !== current.type) throw new Error("Use replace to change document type");
-      const [row] = await tx.update(documents).set(meta).where(eq(documents.id, id)).returning();
+      const [row] = await tx.update(documents).set({ ...meta, section: current.section }).where(eq(documents.id, id)).returning();
+      if (meta.groupId !== current.groupId) await audit(tx, req.siteIdentity!, "document-move", id,
+        `Moved document from ${current.groupId} to ${meta.groupId}`, visitorAddress(req));
       await audit(tx, req.siteIdentity!, "document-edit", id, "Edited document metadata", visitorAddress(req));
       return row!;
     });
@@ -81,10 +102,11 @@ export function documentRoutes(s: Services) {
     if (!existing) { res.status(404).json({ error: "Document not found" }); return; }
     const key = meta.type === "pdf" ? await s.storage.save(req.file!.buffer) : null;
     const row = await s.db.transaction(async tx => {
+      await lockLiveGroup(tx, meta.groupId);
       const [old] = await tx.select().from(documents).where(and(eq(documents.id, id), isNull(documents.retiredAt))).for("update");
       if (!old) return null;
       await tx.update(documents).set({ retiredAt: s.now() }).where(eq(documents.id, id));
-      const [doc] = await tx.insert(documents).values({ ...meta, storageKey: key, replaces: id,
+      const [doc] = await tx.insert(documents).values({ ...meta, section: old.section, storageKey: key, replaces: id,
         uploadedBy: req.siteIdentity!.personId, uploadedByName: req.siteIdentity!.displayName }).returning();
       await audit(tx, req.siteIdentity!, "document-replace", doc!.id, `Replaced document ${id}; prior version retained`, visitorAddress(req));
       return doc!;

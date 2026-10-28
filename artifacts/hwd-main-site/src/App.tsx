@@ -12,9 +12,11 @@ import SignInPage from "@/pages/sign-in";
 import AdminSignInPage from "@/pages/admin-sign-in";
 import AuthContinuePage from "@/pages/auth-continue";
 import HomePage from "@/pages/home";
-import MeetingsPage from "@/pages/meetings";
+import DocumentsPage from "@/pages/documents";
+import DocumentGroupPage from "@/pages/document-group";
+import { MeetingsRedirect, ShareholdersRedirect, DirectorsRedirect, LoggingRedirect, GoverningRedirect, PhotoArchiveRedirect } from "@/pages/legacy-redirect";
+import { AdminHomePage } from "@/pages/admin/admin-home";
 import AnnouncementsPage from "@/pages/announcements";
-import { ShareholdersPage, DirectorsPage, LoggingPage, GoverningPage, PhotoArchivePage } from "@/pages/section-page";
 import AdminDocumentsPage from "@/pages/admin/admin-documents";
 import { AdminAnnouncementsPage, AdminAppsPage, AdminAuditPage, AdminHomeNoticePage, AdminPeoplePage } from "@/pages/admin/admin-features";
 
@@ -37,17 +39,20 @@ function PrivateRoutes() {
         <RoutedErrorBoundary>
           <Switch>
             <Route path="/" component={HomePage} />
-            <Route path="/meetings" component={MeetingsPage} />
-            <Route path="/meetings/shareholders" component={ShareholdersPage} />
-            <Route path="/meetings/directors" component={DirectorsPage} />
-            <Route path="/logging" component={LoggingPage} />
-            <Route path="/governing" component={GoverningPage} />
-            <Route path="/photo-archive" component={PhotoArchivePage} />
+            <Route path="/documents" component={DocumentsPage} />
+            <Route path="/documents/:slug" component={DocumentGroupPage} />
+            <Route path="/meetings" component={MeetingsRedirect} />
+            <Route path="/meetings/shareholders" component={ShareholdersRedirect} />
+            <Route path="/meetings/directors" component={DirectorsRedirect} />
+            <Route path="/logging" component={LoggingRedirect} />
+            <Route path="/governing" component={GoverningRedirect} />
+            <Route path="/photo-archive" component={PhotoArchiveRedirect} />
             <Route path="/announcements" component={AnnouncementsPage} />
             <Route path="/admin"><Redirect to="/admin/documents" /></Route>
             <Route path="/admin/documents" component={admin(AdminDocumentsPage)} />
             <Route path="/admin/announcements" component={admin(AdminAnnouncementsPage)} />
             <Route path="/admin/home-notice" component={admin(AdminHomeNoticePage)} />
+            <Route path="/admin/home" component={adminOnly(AdminHomePage)} />
             <Route path="/admin/apps" component={adminOnly(AdminAppsPage)} />
             <Route path="/admin/people" component={adminOnly(AdminPeoplePage)} />
             <Route path="/admin/audit" component={adminOnly(AdminAuditPage)} />

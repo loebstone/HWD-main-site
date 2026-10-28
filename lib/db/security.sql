@@ -28,6 +28,8 @@ DECLARE
   grants_table regclass := to_regclass('site_grants');
   documents_table regclass := to_regclass('site_documents');
   announcements_table regclass := to_regclass('site_announcements');
+  groups_table regclass := to_regclass('site_document_groups');
+  migrations_table regclass := to_regclass('site_data_migrations');
 BEGIN
   IF audit_table IS NULL OR grants_table IS NULL OR documents_table IS NULL OR announcements_table IS NULL THEN
     RAISE EXCEPTION 'HWD protected tables must exist before protection installation';
@@ -47,6 +49,12 @@ BEGIN
   END IF;
   IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname='site_grant_role' AND conrelid=grants_table) THEN
     ALTER TABLE site_grants ADD CONSTRAINT site_grant_role CHECK (role IN ('editor','admin'));
+  END IF;
+  IF groups_table IS NOT NULL AND NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgrelid=groups_table AND tgname='site_groups_no_delete' AND NOT tgisinternal) THEN
+    CREATE TRIGGER site_groups_no_delete BEFORE DELETE OR TRUNCATE ON site_document_groups FOR EACH STATEMENT EXECUTE FUNCTION site_refuse_hard_delete();
+  END IF;
+  IF migrations_table IS NOT NULL AND NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgrelid=migrations_table AND tgname='site_migrations_immutable' AND NOT tgisinternal) THEN
+    CREATE TRIGGER site_migrations_immutable BEFORE UPDATE OR DELETE OR TRUNCATE ON site_data_migrations FOR EACH STATEMENT EXECUTE FUNCTION site_refuse_audit_mutation();
   END IF;
 END
 $$;

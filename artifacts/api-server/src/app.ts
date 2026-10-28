@@ -20,6 +20,9 @@ import { PROXY_TRUST } from "./lib/proxy-trust";
 import { BUILD_ID } from "./lib/build-identity";
 import { publicDocument } from "./lib/documents";
 import { getAppLinks, getHomeNotice, listAnnouncements } from "./lib/site-content";
+import { adminGroupRoutes, groupRoutes, homeGroupSettingsRoutes } from "./routes/document-groups";
+import { getFeaturedGroupIds, GroupError, legacyGroupLocation, listGroups, visibleDocumentFilter } from "./lib/document-groups";
+import { and } from "drizzle-orm";
 
 export function createApp(services: Partial<Services> = {}): Express {
   const s = { ...defaultServices, ...services };
@@ -43,36 +46,52 @@ export function createApp(services: Partial<Services> = {}): Express {
   app.use("/api/auth", ssoEntryRoutes());
   app.use("/api/auth", authRoutes(s));
   app.use("/api/public/home-notice", publicHomeNoticeRoutes(s));
+  // Public redirects reveal only the destination, never document data.
+  app.get(["/meetings", "/meetings/shareholders", "/meetings/directors", "/logging", "/governing", "/photo-archive"], async (req, res) => {
+    const location = await legacyGroupLocation(s, req.path);
+    res.redirect(301, location ?? "/documents");
+  });
   // All remaining API routes fail closed before route lookup or file access.
   app.use("/api", requireSession(s));
   app.use("/api/apps", appLinkRoutes(s));
   app.use("/api/announcements", announcementRoutes(s));
   app.use("/api/documents", documentRoutes(s));
+  app.use("/api/groups", groupRoutes(s));
+  app.use("/api/admin/groups", adminGroupRoutes(s));
+  app.use("/api/admin/home", homeGroupSettingsRoutes(s));
   app.use("/api/admin/grants", grantRoutes(s));
   app.use("/api/admin/audit", auditRoutes(s));
   app.use("/api/admin/old-site-import", oldSiteImportRoutes(s));
   app.use("/api/admin", adminSettingsRoutes(s));
   app.get("/api/home", async (req, res): Promise<void> => {
-    const [count] = await s.db.select({ value: sql<number>`count(*)::integer` }).from(documents).where(isNull(documents.retiredAt));
-    const recent = await s.db.select().from(documents).where(isNull(documents.retiredAt)).orderBy(desc(documents.uploadedAt)).limit(5);
+    const visible = and(isNull(documents.retiredAt), visibleDocumentFilter(s, req.siteIdentity!.role));
+    const [count] = await s.db.select({ value: sql<number>`count(*)::integer` }).from(documents).where(visible);
+    const recent = await s.db.select().from(documents).where(visible).orderBy(desc(documents.uploadedAt)).limit(5);
+    const groups = await listGroups(s, req.siteIdentity!.role);
+    const featuredIds = await getFeaturedGroupIds(s);
+    const featuredGroups = featuredIds.flatMap(id => groups.find(g => g.id === id) ?? []);
     const [notice, reminders, allApps] = await Promise.all([
       getHomeNotice(s), listAnnouncements(s, { placement: "reminders" }), getAppLinks(s),
     ]);
     const apps = req.siteIdentity?.role === "admin" ? allApps
       : allApps.filter(app => app.id === "calendar" || app.id === "roster");
     res.json({ documentCount: count?.value ?? 0, recentDocuments: recent.map(publicDocument),
-      notice, reminders: reminders.slice(0, 5), apps });
+      notice, reminders: reminders.slice(0, 5), apps, featuredGroups });
   });
   app.use((_req, res) => { res.status(404).json({ error: "Not found" }); });
   const errorHandler: ErrorRequestHandler = (error, req, res, _next) => {
     if (res.headersSent) { res.destroy(); return; }
     const message = error instanceof Error ? error.message : "";
+    const databaseCode = error?.code ?? error?.cause?.code;
     const jsonTooLarge = error?.type === "entity.too.large";
-    const status = jsonTooLarge || error?.code === "LIMIT_FILE_SIZE" ? 413
+    const status = error instanceof GroupError ? error.status : databaseCode === "23505" ? 409
+      : jsonTooLarge || error?.code === "LIMIT_FILE_SIZE" ? 413
       : error instanceof ZodError || error instanceof SyntaxError || error?.type === "entity.parse.failed" ||
         error?.name === "MulterError" || /Year is required|Invalid |is required|Use replace|last administrator/.test(message) ? 400 : 503;
     req.log.warn({ errorType: error?.name ?? "Error" }, message.includes("is unset") ? message : "Request refused");
-    res.status(status).json({ error: jsonTooLarge ? "Request too large. JSON bodies must be no larger than 64 KB."
+    res.status(status).json({ error: error instanceof GroupError ? error.message
+      : databaseCode === "23505" ? "That slug or record already exists. Choose a unique slug."
+      : jsonTooLarge ? "Request too large. JSON bodies must be no larger than 64 KB."
       : status === 413 ? "PDF must be no larger than 50 MB"
       : status === 400 ? "Invalid request. Check the supplied fields." : "This feature is temporarily unavailable." });
   };

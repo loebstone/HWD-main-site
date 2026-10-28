@@ -3,6 +3,7 @@ import { logger } from "./lib/logger";
 import { installDatabaseProtections } from "./install-security";
 import { BUILD_ID } from "./lib/build-identity";
 import { PROXY_TRUST } from "./lib/proxy-trust";
+import { migrateDocumentGroups } from "./migrate-document-groups";
 
 logger.info({ build: BUILD_ID }, "HWD API build");
 logger.info({ trustedProxyHops: PROXY_TRUST.hops, source: PROXY_TRUST.source, reason: PROXY_TRUST.reason },
@@ -23,6 +24,7 @@ if (Number.isNaN(port) || port <= 0) {
 }
 
 await installDatabaseProtections();
+await migrateDocumentGroups();
 
 app.listen(port, (err) => {
   if (err) {

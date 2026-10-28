@@ -1,11 +1,14 @@
 import { pgTable, text, timestamp, uuid, integer, check, type AnyPgColumn } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
+import { documentGroups } from "./document-groups";
 
 export const documents = pgTable("site_documents", {
   id: uuid("id").primaryKey().defaultRandom(),
   legacySheetId: text("legacy_sheet_id").unique(),
+  // Nullable during additive schema push; startup migration enforces live-group assignment.
+  groupId: uuid("group_id").references(() => documentGroups.id),
   title: text("title").notNull(),
-  section: text("section", { enum: ["shareholders", "directors", "governing", "logging", "photo_archive"] }).notNull(),
+  section: text("section", { enum: ["shareholders", "directors", "governing", "logging", "photo_archive"] }),
   year: integer("year"),
   type: text("type", { enum: ["pdf", "link"] }).notNull(),
   storageKey: text("storage_key"),
@@ -19,6 +22,5 @@ export const documents = pgTable("site_documents", {
   retiredAt: timestamp("retired_at", { withTimezone: true }),
   replaces: uuid("replaces").references((): AnyPgColumn => documents.id),
 }, (t) => [
-  check("site_document_year", sql`${t.section} NOT IN ('shareholders','directors') OR ${t.year} IS NOT NULL`),
   check("site_document_storage", sql`(${t.type}='pdf' AND ${t.storageKey} IS NOT NULL AND ${t.externalUrl} IS NULL) OR (${t.type}='link' AND ${t.externalUrl} IS NOT NULL AND ${t.storageKey} IS NULL)`),
 ]);

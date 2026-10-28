@@ -10,4 +10,5 @@ import type { Section } from './section';
 export type ListDocumentsParams = {
 section?: Section;
 includeRetired?: boolean;
+groupId?: string;
 };

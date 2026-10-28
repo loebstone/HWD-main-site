@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   useCreateLinkDocument, useUploadDocument, useUpdateDocument, useReplaceDocument,
-  getListDocumentsQueryKey, getGetHomeQueryKey, Section,
+  useListDocumentGroups,
   type Document, type DocumentInput,
 } from "@workspace/api-client-react";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -12,8 +12,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { SECTION_LABELS, YEAR_REQUIRED } from "@/lib/docs";
+import { invalidateDocs } from "@/lib/invalidate";
 import { errorMessage } from "@/lib/session";
+import { blankFormGroupDefault } from "@/lib/document-form-default";
 
 export type FormMode = "upload" | "link" | "edit" | "replace";
 const MAX_BYTES = 50 * 1024 * 1024;
@@ -22,9 +23,10 @@ const TITLES: Record<FormMode, string> = {
   upload: "Upload a PDF", link: "Add a link", edit: "Edit details", replace: "Replace document",
 };
 
-export function DocumentFormDialog({ mode, doc, open, onOpenChange }: {
-  mode: FormMode; doc?: Document; open: boolean; onOpenChange: (o: boolean) => void;
+export function DocumentFormDialog({ mode, doc, open, onOpenChange, defaultGroupId }: {
+  mode: FormMode; doc?: Document; open: boolean; onOpenChange: (o: boolean) => void; defaultGroupId?: string;
 }) {
+  const groups = useListDocumentGroups();
   const qc = useQueryClient();
   const { toast } = useToast();
   const createLink = useCreateLinkDocument();
@@ -33,7 +35,7 @@ export function DocumentFormDialog({ mode, doc, open, onOpenChange }: {
   const replace = useReplaceDocument();
 
   const [title, setTitle] = useState("");
-  const [section, setSection] = useState<Section>("shareholders");
+  const [groupId, setGroupId] = useState("");
   const [year, setYear] = useState("");
   const [type, setType] = useState<"pdf" | "link">("pdf");
   const [url, setUrl] = useState("");
@@ -47,12 +49,19 @@ export function DocumentFormDialog({ mode, doc, open, onOpenChange }: {
   useEffect(() => {
     if (!open) return;
     setError(null); setFile(null);
-    setTitle(doc?.title ?? ""); setSection(doc?.section ?? "shareholders");
+    setTitle(doc?.title ?? ""); setGroupId(doc?.groupId ?? defaultGroupId ?? "");
     setYear(doc?.year != null ? String(doc.year) : "");
     setType(mode === "link" ? "link" : mode === "upload" ? "pdf" : doc?.type ?? "pdf");
     setUrl(doc?.externalUrl ?? ""); setSortOrder(String(doc?.sortOrder ?? 0));
     setTags(doc?.tags.join(", ") ?? ""); setNote(doc?.note ?? "");
-  }, [open, mode, doc]);
+  }, [open, mode, doc, defaultGroupId]);
+
+  useEffect(() => {
+    // The reset effect above and this effect share the previous render's groupId.
+    // Never let the blank-form default overwrite an edit or a filtered upload's group.
+    const fallback = blankFormGroupDefault(open, groupId, doc?.groupId, defaultGroupId, groups.data?.[0]?.id);
+    if (fallback) setGroupId(fallback);
+  }, [open, groupId, doc?.groupId, defaultGroupId, groups.data]);
 
   const needsFile = (mode === "upload") || (mode === "replace" && type === "pdf");
   const showType = mode === "replace";
@@ -66,7 +75,8 @@ export function DocumentFormDialog({ mode, doc, open, onOpenChange }: {
     if (year.trim()) {
       y = Number(year);
       if (!Number.isInteger(y) || y < 1800 || y > 2200) return "Year should be between 1800 and 2200.";
-    } else if (YEAR_REQUIRED.includes(section)) return "Meeting documents need a year.";
+    }
+    if (!groupId) return "Choose a group.";
     const so = Number(sortOrder || 0);
     if (!Number.isFinite(so) || !Number.isInteger(so)) return "Sort order should be a whole number.";
     const tagList = tags.split(",").map((s) => s.trim()).filter(Boolean);
@@ -82,7 +92,7 @@ export function DocumentFormDialog({ mode, doc, open, onOpenChange }: {
       if (file.size > MAX_BYTES) return "That PDF is larger than 50 MB.";
     }
     return {
-      title: t, section, year: y, type, externalUrl: type === "link" ? url.trim() : null,
+      title: t, groupId, year: y, type, externalUrl: type === "link" ? url.trim() : null,
       sortOrder: so, tags: tagList, note,
     };
   }
@@ -97,10 +107,7 @@ export function DocumentFormDialog({ mode, doc, open, onOpenChange }: {
       else if (mode === "upload") await upload.mutateAsync({ data: { metadata: JSON.stringify(input), file: file! } });
       else if (mode === "edit") await update.mutateAsync({ id: doc!.id, data: { ...input, type: doc!.type, externalUrl: doc!.type === "link" ? input.externalUrl : null } });
       else await replace.mutateAsync({ id: doc!.id, data: { metadata: JSON.stringify(input), ...(type === "pdf" && file ? { file } : {}) } });
-      await Promise.all([
-        qc.invalidateQueries({ queryKey: getListDocumentsQueryKey() }),
-        qc.invalidateQueries({ queryKey: getGetHomeQueryKey() }),
-      ]);
+      await invalidateDocs(qc);
       toast({ title: "Saved", description: input.title });
       onOpenChange(false);
     } catch (err) {
@@ -114,7 +121,7 @@ export function DocumentFormDialog({ mode, doc, open, onOpenChange }: {
         <DialogHeader>
           <DialogTitle className="font-display text-2xl">{TITLES[mode]}</DialogTitle>
           <DialogDescription>
-            {mode === "replace" ? "The current version is kept on record and the new one takes its place." : "Members will see this in the section you choose."}
+            {mode === "replace" ? "The current version is kept on record and the new one takes its place." : "Members will find this in the group you choose."}
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={submit} className="space-y-4">
@@ -124,16 +131,16 @@ export function DocumentFormDialog({ mode, doc, open, onOpenChange }: {
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5 col-span-2 sm:col-span-1">
-              <Label>Section</Label>
-              <Select value={section} onValueChange={(v) => setSection(v as Section)}>
-                <SelectTrigger data-testid="select-section"><SelectValue /></SelectTrigger>
+              <Label>Group</Label>
+              <Select value={groupId} onValueChange={(value) => { if (value) setGroupId(value); }} disabled={groups.isLoading}>
+                <SelectTrigger data-testid="select-group"><SelectValue placeholder={groups.isLoading ? "Loading groups..." : groups.isError ? "Groups didn't load" : "Choose a group"} /></SelectTrigger>
                 <SelectContent>
-                  {Object.values(Section).map((s) => <SelectItem key={s} value={s}>{SECTION_LABELS[s]}</SelectItem>)}
+                  {(groups.data ?? []).map((g) => <SelectItem key={g.id} value={g.id}>{g.name}{g.visibility === "staff" ? " (editors only)" : ""}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="f-year">Year{YEAR_REQUIRED.includes(section) ? "" : " (optional)"}</Label>
+              <Label htmlFor="f-year">Year (optional)</Label>
               <Input id="f-year" inputMode="numeric" value={year} onChange={(e) => setYear(e.target.value)} data-testid="input-year" />
             </div>
             <div className="space-y-1.5">
@@ -144,7 +151,7 @@ export function DocumentFormDialog({ mode, doc, open, onOpenChange }: {
           {showType && (
             <div className="space-y-1.5">
               <Label>Replace with</Label>
-              <Select value={type} onValueChange={(v) => setType(v as "pdf" | "link")}>
+              <Select value={type} onValueChange={(v) => { if (v === "pdf" || v === "link") setType(v); }}>
                 <SelectTrigger data-testid="select-type"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="pdf">A new PDF</SelectItem>

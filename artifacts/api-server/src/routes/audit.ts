@@ -7,7 +7,8 @@ import type { Services } from "../lib/services";
 
 const actions = ["sign-in", "sign-out", "document-open", "document-upload", "document-replace",
   "document-retire", "grant-create", "grant-end", "announcement-create", "announcement-edit",
-  "announcement-retire", "notice-edit", "apps-edit", "import"] as const;
+  "announcement-retire", "notice-edit", "apps-edit", "import", "document-edit",
+  "group-create", "group-edit", "group-retire", "document-move", "home-edit"] as const;
 
 export function auditRoutes(s: Services) {
   const router = Router();

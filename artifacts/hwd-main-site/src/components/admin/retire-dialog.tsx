@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { useRetireDocument, getListDocumentsQueryKey, getGetHomeQueryKey, type Document } from "@workspace/api-client-react";
+import { useRetireDocument, type Document } from "@workspace/api-client-react";
 import {
   AlertDialog, AlertDialogCancel, AlertDialogContent, AlertDialogDescription,
   AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
@@ -8,6 +8,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { errorMessage } from "@/lib/session";
+import { invalidateDocs } from "@/lib/invalidate";
 
 export function RetireDialog({ doc, onClose }: { doc: Document | null; onClose: () => void }) {
   const retire = useRetireDocument();
@@ -20,10 +21,7 @@ export function RetireDialog({ doc, onClose }: { doc: Document | null; onClose: 
     setError(null);
     try {
       await retire.mutateAsync({ id: doc.id });
-      await Promise.all([
-        qc.invalidateQueries({ queryKey: getListDocumentsQueryKey() }),
-        qc.invalidateQueries({ queryKey: getGetHomeQueryKey() }),
-      ]);
+      await invalidateDocs(qc);
       toast({ title: "Retired", description: doc.title });
       onClose();
     } catch (err) {

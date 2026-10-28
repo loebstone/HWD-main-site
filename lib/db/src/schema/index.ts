@@ -19,5 +19,6 @@
 
 export * from "./auth";
 export * from "./documents";
+export * from "./document-groups";
 export * from "./audit";
 export * from "./site-content";

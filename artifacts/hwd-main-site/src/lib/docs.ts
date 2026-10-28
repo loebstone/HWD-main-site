@@ -1,14 +1,4 @@
-import type { Document, Section } from "@workspace/api-client-react";
-
-export const SECTION_LABELS: Record<Section, string> = {
-  shareholders: "Shareholders' Meetings",
-  directors: "Directors' Meetings",
-  governing: "Governing Docs & Policies",
-  logging: "Logging",
-  photo_archive: "Photo Archive",
-};
-
-export const YEAR_REQUIRED: Section[] = ["shareholders", "directors"];
+import type { Document } from "@workspace/api-client-react";
 
 export function openUrl(id: string) {
   return `/api/documents/${encodeURIComponent(id)}/open`;
@@ -42,4 +32,8 @@ export function matches(d: Document, q: string) {
 export function formatDate(iso: string) {
   const d = new Date(iso);
   return isNaN(d.getTime()) ? iso : d.toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
+}
+
+export function sortList(docs: Document[]) {
+  return [...docs].sort((a, b) => a.sortOrder - b.sortOrder || a.title.localeCompare(b.title));
 }

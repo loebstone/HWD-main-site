@@ -108,6 +108,135 @@ export const Section = {
   photo_archive: 'photo_archive',
 } as const;
 
+/**
+ * @nullable
+ */
+export type LegacySection = typeof LegacySection[keyof typeof LegacySection] | null;
+
+
+export const LegacySection = {
+  shareholders: 'shareholders',
+  directors: 'directors',
+  governing: 'governing',
+  logging: 'logging',
+  photo_archive: 'photo_archive',
+} as const;
+
+export type GroupInputLayout = typeof GroupInputLayout[keyof typeof GroupInputLayout];
+
+
+export const GroupInputLayout = {
+  list: 'list',
+  by_year: 'by_year',
+} as const;
+
+export type GroupInputVisibility = typeof GroupInputVisibility[keyof typeof GroupInputVisibility];
+
+
+export const GroupInputVisibility = {
+  everyone: 'everyone',
+  staff: 'staff',
+} as const;
+
+export interface GroupInput {
+  /**
+     * @minLength 1
+     * @maxLength 150
+     */
+  name: string;
+  /** @maxLength 180 */
+  slug?: string;
+  /** @maxLength 500 */
+  description: string;
+  sortOrder: number;
+  layout: GroupInputLayout;
+  visibility: GroupInputVisibility;
+}
+
+export type DocumentGroupLayout = typeof DocumentGroupLayout[keyof typeof DocumentGroupLayout];
+
+
+export const DocumentGroupLayout = {
+  list: 'list',
+  by_year: 'by_year',
+} as const;
+
+export type DocumentGroupVisibility = typeof DocumentGroupVisibility[keyof typeof DocumentGroupVisibility];
+
+
+export const DocumentGroupVisibility = {
+  everyone: 'everyone',
+  staff: 'staff',
+} as const;
+
+export interface DocumentGroup {
+  id: string;
+  name: string;
+  slug: string;
+  description: string;
+  sortOrder: number;
+  layout: DocumentGroupLayout;
+  visibility: DocumentGroupVisibility;
+  createdBy: string;
+  createdAt: string;
+  /** @nullable */
+  retiredAt: string | null;
+  documentCount: number;
+  /** @nullable */
+  latestTitle: string | null;
+  /** @nullable */
+  latestDate: string | null;
+}
+
+export type DocumentType = typeof DocumentType[keyof typeof DocumentType];
+
+
+export const DocumentType = {
+  pdf: 'pdf',
+  link: 'link',
+} as const;
+
+export interface Document {
+  id: string;
+  groupId: string;
+  title: string;
+  section: LegacySection | null;
+  /** @nullable */
+  year: number | null;
+  type: DocumentType;
+  /** @nullable */
+  externalUrl: string | null;
+  sortOrder: number;
+  tags: string[];
+  note: string;
+  uploadedBy: string;
+  uploadedByName: string;
+  uploadedAt: string;
+  /** @nullable */
+  retiredAt: string | null;
+  /** @nullable */
+  replaces: string | null;
+}
+
+export interface GroupDocuments {
+  group: DocumentGroup;
+  documents: Document[];
+}
+
+export interface DocumentMoveInput {
+  /**
+     * @minItems 1
+     * @maxItems 500
+     */
+  ids: string[];
+  groupId: string;
+}
+
+export interface HomeGroups {
+  /** @maxItems 4 */
+  groupIds: string[];
+}
+
 export type DocumentInputType = typeof DocumentInputType[keyof typeof DocumentInputType];
 
 
@@ -122,7 +251,8 @@ export interface DocumentInput {
      * @maxLength 250
      */
   title: string;
-  section: Section;
+  groupId: string;
+  section?: LegacySection | null;
   /**
      * @minimum 1800
      * @maximum 2200
@@ -149,35 +279,6 @@ export interface FileInput {
   /** JSON encoded DocumentInput; file optional only when replacing with a link */
   metadata: string;
   file?: Blob | File;
-}
-
-export type DocumentType = typeof DocumentType[keyof typeof DocumentType];
-
-
-export const DocumentType = {
-  pdf: 'pdf',
-  link: 'link',
-} as const;
-
-export interface Document {
-  id: string;
-  title: string;
-  section: Section;
-  /** @nullable */
-  year: number | null;
-  type: DocumentType;
-  /** @nullable */
-  externalUrl: string | null;
-  sortOrder: number;
-  tags: string[];
-  note: string;
-  uploadedBy: string;
-  uploadedByName: string;
-  uploadedAt: string;
-  /** @nullable */
-  retiredAt: string | null;
-  /** @nullable */
-  replaces: string | null;
 }
 
 export type HomeNoticeVisibility = typeof HomeNoticeVisibility[keyof typeof HomeNoticeVisibility];
@@ -240,6 +341,7 @@ export interface AppLink {
 
 export interface HomeSummary {
   documentCount: number;
+  featuredGroups: DocumentGroup[];
   recentDocuments: Document[];
   notice: HomeNotice;
   reminders: Announcement[];
@@ -346,6 +448,12 @@ export const AuditAction = {
   'document-upload': 'document-upload',
   'document-replace': 'document-replace',
   'document-retire': 'document-retire',
+  'document-edit': 'document-edit',
+  'document-move': 'document-move',
+  'group-create': 'group-create',
+  'group-edit': 'group-edit',
+  'group-retire': 'group-retire',
+  'home-edit': 'home-edit',
   'grant-create': 'grant-create',
   'grant-end': 'grant-end',
   'announcement-create': 'announcement-create',
@@ -387,6 +495,7 @@ to?: string;
 export type ListDocumentsParams = {
 section?: Section;
 includeRetired?: boolean;
+groupId?: string;
 };
 
 export type ListAnnouncementsParams = {

@@ -7,7 +7,7 @@ id = "3B4_FFSkEVBkAeYMFRJ2e"
 [[services]]
 localPort = 8080
 name = "API Server"
-paths = ["/api", "/auth/sso"]
+paths = ["/api", "/auth/sso", "/meetings", "/logging", "/governing", "/photo-archive"]
 
 [services.development]
 run = "pnpm --filter @workspace/api-server run dev"
