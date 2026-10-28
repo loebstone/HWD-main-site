@@ -56,7 +56,7 @@ export function AdminAnnouncementsPage() {
         <div className="space-y-1.5"><Label htmlFor="announcement-title">Title</Label><Input id="announcement-title" maxLength={250} {...form.register("title", { required: true })} data-testid="input-announcement-title" /></div>
         <div className="space-y-1.5"><Label htmlFor="announcement-date">Date</Label><Input id="announcement-date" type="date" {...form.register("date", { required: true })} data-testid="input-announcement-date" /></div>
         <div className="space-y-1.5"><Label htmlFor="announcement-placement">Placement</Label>
-          <Select value={form.watch("placement")} onValueChange={(value) => form.setValue("placement", value as AnnouncementInput["placement"])}>
+          <Select value={form.watch("placement")} onValueChange={(value) => { if (value === "announcements" || value === "reminders" || value === "both") form.setValue("placement", value); }}>
             <SelectTrigger id="announcement-placement" data-testid="select-announcement-placement"><SelectValue /></SelectTrigger>
             <SelectContent><SelectItem value="announcements">Announcements</SelectItem><SelectItem value="reminders">Home reminders</SelectItem><SelectItem value="both">Both</SelectItem></SelectContent>
           </Select></div>
@@ -94,7 +94,7 @@ export function AdminHomeNoticePage() {
         <Form {...form}><form className="space-y-5" onSubmit={form.handleSubmit((data) => mutation.mutate({ data }, { onSuccess: () => { void client.invalidateQueries({ queryKey: getGetHomeNoticeQueryKey() }); void client.invalidateQueries({ queryKey: getGetPublicHomeNoticeQueryKey() }); } }))} data-testid="form-home-notice">
           <div className="space-y-1.5"><Label htmlFor="notice-text">Notice text</Label><Textarea id="notice-text" rows={7} maxLength={10000} {...form.register("text")} data-testid="input-home-notice" /><p className="text-sm text-muted-foreground">Plain text is supported. Web addresses become clickable on the home page.</p></div>
           <div className="space-y-1.5"><Label htmlFor="notice-visibility">Who can see it?</Label>
-            <Select value={form.watch("visibility")} onValueChange={(value) => form.setValue("visibility", value as HomeNoticeInput["visibility"])}>
+            <Select value={form.watch("visibility")} onValueChange={(value) => { if (value === "signed-in" || value === "public") form.setValue("visibility", value); }}>
               <SelectTrigger id="notice-visibility" data-testid="select-notice-visibility"><SelectValue /></SelectTrigger>
               <SelectContent><SelectItem value="signed-in">Signed-in family only</SelectItem><SelectItem value="public">Public, including sign-in page</SelectItem></SelectContent>
             </Select></div>

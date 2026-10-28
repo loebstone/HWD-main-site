@@ -481,7 +481,7 @@ test("HWD foundation: isolated development security suite", async (t) => {
         await page.getByTestId("button-save-home-notice").click();
         const noticeSaved = await page.waitForResponse(response =>
           response.url().includes("/api/admin/home-notice") && response.request().method() === "PUT");
-        assert.equal(noticeSaved.status(), 200, `Home notice save response: ${noticeSaved.status()} ${await noticeSaved.text()}`);
+        assert.equal(noticeSaved.status(), 200, `Home notice save request: ${noticeSaved.request().postData()}; response: ${noticeSaved.status()} ${await noticeSaved.text()}`);
         await page.goto(`${origin}/admin/apps`);
         await page.getByTestId("form-app-links").waitFor();
         console.info("Browser: Apps form loaded");

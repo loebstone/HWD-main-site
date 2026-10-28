@@ -2,17 +2,25 @@
 -- Never drops/recreates a trigger or deletes/updates data.
 SELECT pg_advisory_xact_lock(74202001);
 
-CREATE OR REPLACE FUNCTION site_refuse_audit_mutation() RETURNS trigger LANGUAGE plpgsql AS $$
+DO $installer$
+BEGIN
+IF to_regprocedure('site_refuse_audit_mutation()') IS NULL THEN
+EXECUTE $function$CREATE FUNCTION site_refuse_audit_mutation() RETURNS trigger LANGUAGE plpgsql AS $body$
 BEGIN
   RAISE EXCEPTION 'site_audit_log is append-only' USING ERRCODE = '42501';
 END;
-$$;
+$body$;$function$;
+END IF;
 
-CREATE OR REPLACE FUNCTION site_refuse_hard_delete() RETURNS trigger LANGUAGE plpgsql AS $$
+IF to_regprocedure('site_refuse_hard_delete()') IS NULL THEN
+EXECUTE $function$CREATE FUNCTION site_refuse_hard_delete() RETURNS trigger LANGUAGE plpgsql AS $body$
 BEGIN
   RAISE EXCEPTION 'Retire or end records; hard deletion is forbidden' USING ERRCODE = '42501';
 END;
-$$;
+$body$;$function$;
+END IF;
+END;
+$installer$;
 
 DO $$
 DECLARE
