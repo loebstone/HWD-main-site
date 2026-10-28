@@ -20,11 +20,10 @@ export default function SignInPage() {
       <NoticeText text={publicNotice.data.text} />
     </aside>}
     <div className="space-y-5">
-      <h1 className="text-3xl md:text-4xl">{signedOut ? "You’re signed out of the Farm site" : "Welcome back"}</h1>
-      <p className="text-lg text-muted-foreground">You'll sign in once at the Farm Roster; it works for all the Farm apps.</p>
+      <h1 className="text-3xl md:text-4xl">{signedOut ? "You’re signed out of the Farm site" : "Sign in to HWD Farm"}</h1>
       {entry.data ? <Button asChild size="lg" className="w-full h-12 text-base">
         <a href={entry.data.url} data-testid="button-roster-sign-in">Sign in</a>
-      </Button> : <p role="status">{entry.isError ? "Roster sign-in is unavailable. Please try again later." : "Preparing sign-in…"}</p>}
+      </Button> : <p role="status">{entry.isError ? "Sign-in is unavailable. Please try again later." : "Preparing sign-in…"}</p>}
       {signedOut && allSignOut.data && <a href={allSignOut.data.url} className="block text-primary underline underline-offset-4"
         data-testid="link-all-sign-out">Sign out of all Farm apps</a>}
     </div>
