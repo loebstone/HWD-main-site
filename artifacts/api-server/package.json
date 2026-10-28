@@ -9,7 +9,7 @@
     "start": "node --enable-source-maps ./dist/index.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "tsx --test tests/foundation.test.ts",
-    "security:dev": "tsx src/install-security.ts"
+    "security:dev": "RUN_SECURITY_INSTALL=dev tsx src/install-security.ts"
   },
   "dependencies": {
     "@google-cloud/storage": "^8.4.0",

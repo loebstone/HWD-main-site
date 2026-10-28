@@ -33,12 +33,13 @@ export function grantRoutes(s: Services) {
       if (!grant) return false;
       if (grant.role === "admin") {
         const admins = await tx.select({ id: grants.id }).from(grants).where(and(eq(grants.role, "admin"), isNull(grants.endedAt)));
-        if (admins.length <= 1) throw new Error("Cannot end the last administrator grant");
+        if (admins.length <= 1) return "last-admin" as const;
       }
       await tx.update(grants).set({ endedAt: s.now() }).where(eq(grants.id, id));
       await audit(tx, req.siteIdentity!, "grant-end", id, "Ended access grant; history retained", visitorAddress(req));
-      return true;
+      return "ended" as const;
     });
+    if (ended === "last-admin") { res.status(409).json({ error: "Cannot end the last administrator grant" }); return; }
     if (!ended) { res.status(404).json({ error: "Grant not found" }); return; }
     res.json({ message: "Grant ended" });
   });

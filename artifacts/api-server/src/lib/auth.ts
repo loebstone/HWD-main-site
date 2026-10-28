@@ -5,6 +5,10 @@ import { DAY, required } from "./config";
 import { audit } from "./audit";
 import type { Services } from "./services";
 import { logger } from "./logger";
+import { RosterUnavailableError } from "./roster";
+
+const HOUR = 60 * 60_000;
+const ROSTER_OUTAGE_GRACE = 3 * DAY;
 
 export const hashToken = (value: string) => createHash("sha256").update(value).digest("hex");
 export const newToken = () => randomBytes(32).toString("hex");
@@ -53,7 +57,8 @@ export async function verify(s: Services, token: string, address: string) {
     }
     const [session] = await tx.insert(sessions).values({ hash: hashToken(raw), ...actor,
       goesBy: answer.goes_by, email: login.email, createdAt: now,
-      expiresAt: new Date(now.getTime() + 30 * DAY), lastRenewedAt: now, lastRosterCheckAt: now }).returning();
+      expiresAt: new Date(now.getTime() + 30 * DAY), lastRenewedAt: now,
+      lastRosterCheckAt: now, lastRosterSuccessAt: now }).returning();
     await audit(tx, actor, "sign-in", null, "Signed in using a single-use link", address);
     return session!;
   });
@@ -70,24 +75,49 @@ export async function resolveSession(s: Services, raw: unknown): Promise<SiteSes
     await s.db.update(sessions).set({ endedAt: now }).where(eq(sessions.hash, session.hash));
     return null;
   }
-  if (now.getTime() - session.lastRosterCheckAt.getTime() >= DAY) {
+  if (now.getTime() - session.lastRosterSuccessAt.getTime() >= ROSTER_OUTAGE_GRACE) {
+    await s.db.update(sessions).set({ endedAt: now }).where(and(eq(sessions.hash, session.hash), isNull(sessions.endedAt)));
+    return null;
+  }
+  const outageCheck = session.lastRosterCheckAt > session.lastRosterSuccessAt;
+  const recheckAfter = outageCheck ? HOUR : DAY;
+  if (now.getTime() - session.lastRosterCheckAt.getTime() >= recheckAfter) {
     // Hold row lock while checking so simultaneous requests make at most one Roster call.
     const checked = await s.db.transaction(async (tx) => {
       const [current] = await tx.select().from(sessions).where(eq(sessions.hash, session.hash)).for("update");
       if (!current || current.endedAt) return null;
-      if (now.getTime() - current.lastRosterCheckAt.getTime() < DAY) return current;
-      let allowed = false;
-      try {
-        const answer = await s.roster(current.email);
-        allowed = answer.allowed && answer.personId === current.personId;
-      } catch (error) {
-        logger.warn(error instanceof Error && error.message.includes("is unset") ? error.message : "Roster recheck unavailable; session ended");
-        // Fail closed. Record the failed check to prevent repeated 10-second lookups.
-        allowed = false;
+      if (now.getTime() - current.lastRosterSuccessAt.getTime() >= ROSTER_OUTAGE_GRACE) {
+        await tx.update(sessions).set({ endedAt: now }).where(eq(sessions.hash, current.hash));
+        return null;
       }
-      const [updated] = await tx.update(sessions).set({ lastRosterCheckAt: now, endedAt: allowed ? null : now })
-        .where(eq(sessions.hash, current.hash)).returning();
-      return allowed ? updated! : null;
+      const currentOutage = current.lastRosterCheckAt > current.lastRosterSuccessAt;
+      if (now.getTime() - current.lastRosterCheckAt.getTime() < (currentOutage ? HOUR : DAY)) return current;
+      try {
+        let answer;
+        try {
+          answer = await s.roster(current.email, 5_000);
+        } catch (error) {
+          if (!(error instanceof RosterUnavailableError)) throw error;
+          answer = await s.roster(current.email, 8_000);
+        }
+        const allowed = answer.allowed && answer.personId === current.personId;
+        const [updated] = await tx.update(sessions).set({ lastRosterCheckAt: now,
+          ...(allowed ? { lastRosterSuccessAt: now } : { endedAt: now }) })
+          .where(eq(sessions.hash, current.hash)).returning();
+        return allowed ? updated! : null;
+      } catch (error) {
+        if (!(error instanceof RosterUnavailableError)) {
+          logger.warn(error instanceof Error && error.message.includes("is unset")
+            ? error.message : "Roster returned an unexpected response; session ended");
+          await tx.update(sessions).set({ lastRosterCheckAt: now, endedAt: now }).where(eq(sessions.hash, current.hash));
+          return null;
+        }
+        const overdue = now.getTime() - current.lastRosterSuccessAt.getTime() >= ROSTER_OUTAGE_GRACE;
+        logger.warn({ personId: current.personId, tolerated: !overdue }, "Roster recheck unavailable after retry");
+        const [updated] = await tx.update(sessions).set({ lastRosterCheckAt: now,
+          ...(overdue ? { endedAt: now } : {}) }).where(eq(sessions.hash, current.hash)).returning();
+        return overdue ? null : updated!;
+      }
     });
     if (!checked) return null;
     Object.assign(session, checked);

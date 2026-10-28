@@ -14,3 +14,11 @@ export function AdminGuard({ children }: { children: ReactNode }) {
   }
   return <>{children}</>;
 }
+
+export function AdminOnlyGuard({ children }: { children: ReactNode }) {
+  const { data: me } = useSession();
+  if (me?.role !== "admin") {
+    return <EmptyState title="This area is for administrators">Your role doesn't include administration access. <Link href="/" className="text-primary underline">Back home</Link></EmptyState>;
+  }
+  return <>{children}</>;
+}

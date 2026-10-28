@@ -123,9 +123,70 @@ export interface Document {
   replaces: string | null;
 }
 
+export type HomeNoticeVisibility = typeof HomeNoticeVisibility[keyof typeof HomeNoticeVisibility];
+
+
+export const HomeNoticeVisibility = {
+  'signed-in': 'signed-in',
+  public: 'public',
+} as const;
+
+export interface HomeNotice {
+  /** @maxLength 10000 */
+  text: string;
+  visibility: HomeNoticeVisibility;
+}
+
+export type AnnouncementPlacement = typeof AnnouncementPlacement[keyof typeof AnnouncementPlacement];
+
+
+export const AnnouncementPlacement = {
+  reminders: 'reminders',
+  announcements: 'announcements',
+  both: 'both',
+} as const;
+
+export interface Announcement {
+  id: string;
+  title: string;
+  body: string;
+  date: string;
+  placement: AnnouncementPlacement;
+  hideAfter: string;
+  createdBy: string;
+  createdByName: string;
+  createdAt: string;
+  /** @nullable */
+  retiredAt: string | null;
+}
+
+export type AppLinkId = typeof AppLinkId[keyof typeof AppLinkId];
+
+
+export const AppLinkId = {
+  calendar: 'calendar',
+  roster: 'roster',
+  forecast: 'forecast',
+  'cap-table': 'cap-table',
+} as const;
+
+export interface AppLink {
+  id: AppLinkId;
+  /**
+     * @minLength 1
+     * @maxLength 100
+     */
+  label: string;
+  /** @maxLength 2048 */
+  url: string;
+}
+
 export interface HomeSummary {
   documentCount: number;
   recentDocuments: Document[];
+  notice: HomeNotice;
+  reminders: Announcement[];
+  apps: AppLink[];
 }
 
 export type GrantInputRole = typeof GrantInputRole[keyof typeof GrantInputRole];
@@ -169,8 +230,111 @@ export interface Grant {
   endedAt: string | null;
 }
 
+export interface PublicNotice {
+  /** @maxLength 10000 */
+  text: string;
+}
+
+export type HomeNoticeInputVisibility = typeof HomeNoticeInputVisibility[keyof typeof HomeNoticeInputVisibility];
+
+
+export const HomeNoticeInputVisibility = {
+  'signed-in': 'signed-in',
+  public: 'public',
+} as const;
+
+export interface HomeNoticeInput {
+  /** @maxLength 10000 */
+  text: string;
+  visibility: HomeNoticeInputVisibility;
+}
+
+export interface AppLinksInput {
+  /**
+     * @minItems 4
+     * @maxItems 4
+     */
+  apps: AppLink[];
+}
+
+export type AnnouncementInputPlacement = typeof AnnouncementInputPlacement[keyof typeof AnnouncementInputPlacement];
+
+
+export const AnnouncementInputPlacement = {
+  reminders: 'reminders',
+  announcements: 'announcements',
+  both: 'both',
+} as const;
+
+export interface AnnouncementInput {
+  /**
+     * @minLength 1
+     * @maxLength 250
+     */
+  title: string;
+  /** @maxLength 10000 */
+  body: string;
+  date?: string;
+  placement: AnnouncementInputPlacement;
+  hideAfter?: string;
+}
+
+export type AuditAction = typeof AuditAction[keyof typeof AuditAction];
+
+
+export const AuditAction = {
+  'sign-in': 'sign-in',
+  'sign-out': 'sign-out',
+  'document-open': 'document-open',
+  'document-upload': 'document-upload',
+  'document-replace': 'document-replace',
+  'document-retire': 'document-retire',
+  'grant-create': 'grant-create',
+  'grant-end': 'grant-end',
+  'announcement-create': 'announcement-create',
+  'announcement-edit': 'announcement-edit',
+  'announcement-retire': 'announcement-retire',
+  'notice-edit': 'notice-edit',
+  'apps-edit': 'apps-edit',
+} as const;
+
+export interface AuditEntry {
+  id: string;
+  at: string;
+  actorPersonId: string;
+  actorName: string;
+  action: AuditAction;
+  /** @nullable */
+  targetId: string | null;
+  description: string;
+  visitorAddress: string;
+}
+
+export interface AuditPage {
+  items: AuditEntry[];
+  page: number;
+  pageSize: number;
+  total: number;
+}
+
 export type ListDocumentsParams = {
 section?: Section;
 includeRetired?: boolean;
+};
+
+export type ListAnnouncementsParams = {
+showPast?: boolean;
+};
+
+export type ListAuditLogParams = {
+/**
+ * @minimum 1
+ */
+page?: number;
+/**
+ * @maxLength 100
+ */
+personId?: string;
+action?: AuditAction;
 };
 

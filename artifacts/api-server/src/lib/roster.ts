@@ -8,18 +8,36 @@ const rosterResponse = z.discriminatedUnion("allowed", [
   }),
 ]);
 export type RosterAnswer = z.infer<typeof rosterResponse>;
-export async function checkRoster(email: string): Promise<RosterAnswer> {
+export class RosterUnavailableError extends Error {}
+export class RosterUnexpectedResponseError extends Error {}
+export async function checkRoster(email: string, timeoutMs = 10_000): Promise<RosterAnswer> {
   const base = required("ROSTER_BASE_URL");
   const key = required("SITE_SERVICE_KEY");
   const url = new URL(`${base.replace(/\/$/, "")}/api/service/sign-in-check`);
   if (!["http:", "https:"].includes(url.protocol) || (process.env.NODE_ENV === "production" && url.protocol !== "https:")) {
     throw new Error("ROSTER_BASE_URL is invalid; sign-in refused");
   }
-  const response = await fetch(url, {
-    method: "POST", redirect: "error", signal: AbortSignal.timeout(10_000),
-    headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ email }),
-  });
-  if (!response.ok) throw new Error("Roster unavailable; sign-in refused");
-  return rosterResponse.parse(await response.json());
+  let response: Response;
+  try {
+    response = await fetch(url, {
+      method: "POST", redirect: "manual", signal: AbortSignal.timeout(timeoutMs),
+      headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ email }),
+    });
+  } catch (error) {
+    if (error instanceof TypeError || (error instanceof Error && ["TimeoutError", "AbortError"].includes(error.name))) {
+      throw new RosterUnavailableError("Roster request timed out or was unreachable");
+    }
+    throw error;
+  }
+  if (response.status >= 500 || response.status === 408 || response.status === 429) {
+    throw new RosterUnavailableError(`Roster service returned ${response.status}`);
+  }
+  if (response.status >= 300 && response.status < 400) {
+    throw new RosterUnexpectedResponseError("Roster redirects are refused");
+  }
+  if (!response.ok) throw new RosterUnexpectedResponseError(`Roster returned unexpected status ${response.status}`);
+  const parsed = rosterResponse.safeParse(await response.json());
+  if (!parsed.success) throw new RosterUnexpectedResponseError("Roster returned an unexpected response");
+  return parsed.data;
 }

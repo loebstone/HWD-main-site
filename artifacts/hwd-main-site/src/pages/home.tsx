@@ -1,10 +1,11 @@
 import { Link } from "wouter";
-import { useGetHome } from "@workspace/api-client-react";
-import { ArrowRight } from "lucide-react";
+import { useGetAppLinks, useGetHome, useGetHomeNotice, useListAnnouncements } from "@workspace/api-client-react";
+import { ArrowRight, CalendarDays, CloudSun, TableProperties, UsersRound } from "lucide-react";
 import { useSession, nameOf } from "@/lib/session";
 import { DocumentCard } from "@/components/document-card";
 import { EmptyState, ErrorState, ListSkeleton } from "@/components/states";
 import { Skeleton } from "@/components/ui/skeleton";
+import { NoticeText } from "@/components/notice-text";
 
 const QUICK = [
   { href: "/meetings", label: "Meetings", text: "Shareholders' and directors' minutes, by year" },
@@ -16,6 +17,10 @@ const QUICK = [
 export default function HomePage() {
   const { data: me } = useSession();
   const home = useGetHome();
+  const notice = useGetHomeNotice();
+  const announcements = useListAnnouncements({ showPast: false });
+  const apps = useGetAppLinks();
+  const appIcons = { calendar: CalendarDays, roster: UsersRound, forecast: CloudSun, "cap-table": TableProperties };
   const img = `${import.meta.env.BASE_URL}images/hwd-farm-illustration.jpg`;
 
   return (
@@ -28,6 +33,42 @@ export default function HomePage() {
         <figure className="mt-8 overflow-hidden rounded-2xl border shadow-lg bg-card">
           <img src={img} alt="Illustration of HWD Farm" className="w-full aspect-[16/9] md:aspect-[21/9] object-cover" data-testid="img-hero" />
         </figure>
+      </section>
+
+      {notice.data?.text && <section className="rounded-xl border-l-4 border-primary bg-accent/50 px-5 py-4" data-testid="notice-home">
+        <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">A note for the family</p>
+        <p className="mt-1"><NoticeText text={notice.data.text} /></p>
+      </section>}
+
+      <section>
+        <div className="flex items-end justify-between gap-4 mb-4">
+          <div><p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Quick access</p><h2 className="mt-1 text-3xl">Farm apps</h2></div>
+        </div>
+        {apps.isLoading ? <div className="grid sm:grid-cols-2 gap-3"><Skeleton className="h-20" /><Skeleton className="h-20" /></div> :
+          apps.isError ? <ErrorState onRetry={() => apps.refetch()} /> : !apps.data?.length ?
+            <p className="text-muted-foreground" data-testid="empty-app-links">Farm apps are not set up yet.</p> :
+            <div className="grid sm:grid-cols-2 gap-3">{apps.data.map((app) => {
+              const Icon = appIcons[app.id];
+              return <a key={app.id} href={app.url} target="_blank" rel="noopener noreferrer" className="group flex items-center gap-4 rounded-xl border bg-card px-5 py-4 transition-colors hover:border-primary/40" data-testid={`link-app-${app.id}`}>
+                <span className="grid h-11 w-11 place-items-center rounded-lg bg-secondary text-primary"><Icon className="h-5 w-5" /></span>
+                <span className="flex-1 font-medium">{app.label}</span><ArrowRight className="h-4 w-4 text-muted-foreground transition-transform group-hover:translate-x-1" />
+              </a>;
+            })}</div>}
+      </section>
+
+      <section>
+        <div className="flex items-end justify-between mb-4">
+          <div><p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">For this week</p><h2 className="mt-1 text-3xl">Reminders</h2></div>
+          <Link href="/announcements" className="text-sm text-primary underline underline-offset-4" data-testid="link-all-announcements">All announcements</Link>
+        </div>
+        {announcements.isLoading ? <ListSkeleton rows={2} /> : announcements.isError ? <ErrorState onRetry={() => announcements.refetch()} /> :
+          !(announcements.data || []).filter((a) => a.placement === "reminders" || a.placement === "both").length ?
+            <p className="rounded-xl border bg-card px-5 py-6 text-muted-foreground" data-testid="empty-reminders">There are no current reminders.</p> :
+            <div className="space-y-3">{(announcements.data || []).filter((a) => a.placement === "reminders" || a.placement === "both").slice(0, 5).map((item) =>
+              <article key={item.id} className="rounded-xl border bg-card px-5 py-4" data-testid={`reminder-${item.id}`}>
+                <div className="flex flex-wrap items-baseline justify-between gap-2"><h3 className="text-xl">{item.title}</h3><time className="text-sm text-muted-foreground">{new Date(item.date).toLocaleDateString()}</time></div>
+                <p className="mt-2 whitespace-pre-wrap text-muted-foreground">{item.body}</p>
+              </article>)}</div>}
       </section>
 
       <section className="grid sm:grid-cols-2 gap-4">

@@ -10,8 +10,12 @@ import { defaultServices, type Services } from "./lib/services";
 import { authRoutes } from "./routes/auth";
 import { documentRoutes } from "./routes/documents";
 import { grantRoutes } from "./routes/grants";
+import { announcementRoutes } from "./routes/announcements";
+import { auditRoutes } from "./routes/audit";
+import { adminSettingsRoutes, appLinkRoutes, publicHomeNoticeRoutes } from "./routes/settings";
 import { csrf, requireSession } from "./middlewares/security";
 import { publicDocument } from "./lib/documents";
+import { getAppLinks, getHomeNotice, listAnnouncements } from "./lib/site-content";
 
 export function createApp(services: Partial<Services> = {}): Express {
   const s = { ...defaultServices, ...services };
@@ -32,14 +36,25 @@ export function createApp(services: Partial<Services> = {}): Express {
   app.use(csrf());
   app.get("/api/healthz", (_req, res) => { res.json({ status: "ok" }); });
   app.use("/api/auth", authRoutes(s));
+  app.use("/api/public/home-notice", publicHomeNoticeRoutes(s));
   // All remaining API routes fail closed before route lookup or file access.
   app.use("/api", requireSession(s));
+  app.use("/api/apps", appLinkRoutes(s));
+  app.use("/api/announcements", announcementRoutes(s));
   app.use("/api/documents", documentRoutes(s));
   app.use("/api/admin/grants", grantRoutes(s));
-  app.get("/api/home", async (_req, res): Promise<void> => {
+  app.use("/api/admin/audit", auditRoutes(s));
+  app.use("/api/admin", adminSettingsRoutes(s));
+  app.get("/api/home", async (req, res): Promise<void> => {
     const [count] = await s.db.select({ value: sql<number>`count(*)::integer` }).from(documents).where(isNull(documents.retiredAt));
     const recent = await s.db.select().from(documents).where(isNull(documents.retiredAt)).orderBy(desc(documents.uploadedAt)).limit(5);
-    res.json({ documentCount: count?.value ?? 0, recentDocuments: recent.map(publicDocument) });
+    const [notice, reminders, allApps] = await Promise.all([
+      getHomeNotice(s), listAnnouncements(s, { placement: "reminders" }), getAppLinks(s),
+    ]);
+    const apps = req.siteIdentity?.role === "admin" ? allApps
+      : allApps.filter(app => app.id === "calendar" || app.id === "roster");
+    res.json({ documentCount: count?.value ?? 0, recentDocuments: recent.map(publicDocument),
+      notice, reminders: reminders.slice(0, 5), apps });
   });
   app.use((_req, res) => { res.status(404).json({ error: "Not found" }); });
   const errorHandler: ErrorRequestHandler = (error, req, res, _next) => {

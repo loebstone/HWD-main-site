@@ -1,7 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { createServer } from "node:http";
-import { readFile } from "node:fs/promises";
 import { randomUUID } from "node:crypto";
 import { Readable } from "node:stream";
 import { mkdir } from "node:fs/promises";
@@ -9,10 +8,11 @@ import pg from "pg";
 import request from "supertest";
 import { drizzle } from "drizzle-orm/node-postgres";
 import { and, eq, sql } from "drizzle-orm";
-import { pool, loginTokens, sessions, grants, documents, auditLog } from "@workspace/db";
+import { pool, loginTokens, sessions, grants, documents, auditLog, announcements } from "@workspace/db";
 import * as schema from "@workspace/db/schema";
 import { createApp } from "../src/app";
-import { checkRoster } from "../src/lib/roster";
+import { checkRoster, RosterUnavailableError } from "../src/lib/roster";
+import { installDatabaseProtections } from "../src/install-security";
 import { sendSignInLink } from "../src/lib/email";
 import { hashToken, newToken } from "../src/lib/auth";
 import { appOrigin, DAY, neutralMessage } from "../src/lib/config";
@@ -38,11 +38,12 @@ test("HWD foundation: isolated development security suite", async (t) => {
   await connection.query(`SET search_path TO "${isolated}"`);
   const evidence = await connection.query("SELECT inet_server_addr()::text AS server_address, current_database() AS database_name");
   console.info("Observed database by query:", evidence.rows[0], "isolated schema:", isolated);
-  for (const table of ["site_login_tokens", "site_sessions", "site_grants", "site_documents", "site_audit_log", "site_rate_limits"]) {
+  for (const table of ["site_login_tokens", "site_sessions", "site_grants", "site_documents", "site_audit_log", "site_rate_limits", "site_announcements", "site_settings"]) {
     await connection.query(`CREATE TABLE "${table}" (LIKE public."${table}" INCLUDING ALL)`);
   }
-  await connection.query(await readFile(new URL("../../../lib/db/security.sql", import.meta.url), "utf8"));
   const isolatedPool = new pg.Pool({ connectionString: process.env.DATABASE_URL, max: 5, options: `-c search_path=${isolated}` });
+  await installDatabaseProtections(isolatedPool);
+  await installDatabaseProtections(isolatedPool);
   const testDb = drizzle(isolatedPool, { schema });
   let time = new Date("2026-10-28T12:00:00Z");
   const captured: string[] = [];
@@ -96,7 +97,8 @@ test("HWD foundation: isolated development security suite", async (t) => {
     await t.test("health is anonymous, enforcing headers; every private API refuses anonymous access", async () => {
       const health = await request(app).get("/api/healthz");
       assert.equal(health.status, 200); assert.match(health.headers["content-security-policy"], /default-src 'none'/);
-      for (const path of ["/api/auth/session", "/api/home", "/api/documents", `/api/documents/${randomUUID()}/open`, "/api/admin/grants", "/api/storage/objects/arbitrary"]) {
+      await request(app).get("/api/public/home-notice").expect(204);
+      for (const path of ["/api/auth/session", "/api/home", "/api/apps", "/api/announcements", "/api/documents", `/api/documents/${randomUUID()}/open`, "/api/admin/grants", "/api/admin/audit", "/api/admin/apps", "/api/storage/objects/arbitrary"]) {
         const res = await request(app).get(path); assert.equal(res.status, 401, path);
         assert.equal(res.headers["cache-control"], "no-store");
       }
@@ -219,14 +221,20 @@ test("HWD foundation: isolated development security suite", async (t) => {
         .send({ ...base, type: "link", externalUrl: "https://example.invalid/album" }).expect(201);
       await request(app).get(`/api/documents/${added.body.id}/open`).set("Cookie", memberCookie).expect(302).expect("Location", "https://example.invalid/album");
     });
-    await t.test("append-only database triggers refuse update, delete and truncate; docs/grants cannot be deleted", async () => {
+    await t.test("startup-installed protections are idempotent; audit UPDATE/DELETE/TRUNCATE and hard deletes refused", async () => {
       for (const statement of [
         "UPDATE site_audit_log SET description='tamper'",
         "DELETE FROM site_audit_log",
         "TRUNCATE site_audit_log",
         "DELETE FROM site_documents",
         "DELETE FROM site_grants",
+        "DELETE FROM site_announcements",
       ]) await assert.rejects(connection.query(statement), /append-only|hard deletion/);
+      const installed = await connection.query(
+        "SELECT count(*)::int AS count FROM pg_trigger t JOIN pg_class c ON c.oid=t.tgrelid JOIN pg_namespace n ON n.oid=c.relnamespace WHERE t.tgname='site_audit_immutable' AND NOT t.tgisinternal AND n.nspname=$1",
+        [isolated],
+      );
+      assert.equal(installed.rows[0].count, 1);
     });
     await t.test("expired sessions and absolute 12-month age are refused", async () => {
       for (const variant of ["expired", "old"]) {
@@ -239,7 +247,7 @@ test("HWD foundation: isolated development security suite", async (t) => {
       }
     });
     await t.test("daily Roster recheck and sliding renewal; removed person session ends", async () => {
-      time = new Date(time.getTime() + 2 * DAY);
+      time = new Date(time.getTime() + DAY + 1);
       let before = rosterCalls;
       await request(app).get("/api/auth/session").set("Cookie", memberCookie).expect(200);
       await request(app).get("/api/auth/session").set("Cookie", memberCookie).expect(200);
@@ -247,8 +255,103 @@ test("HWD foundation: isolated development security suite", async (t) => {
       const raw = memberCookie.split("=")[1]!;
       const [row] = await testDb.select().from(sessions).where(eq(sessions.hash, hashToken(raw)));
       assert.equal(row!.expiresAt.getTime() - time.getTime(), 30 * DAY);
-      time = new Date(time.getTime() + 2 * DAY); mode = "deny";
+      time = new Date(time.getTime() + DAY + 1); mode = "deny";
       await request(app).get("/api/home").set("Cookie", memberCookie).expect(401); mode = "allow";
+    });
+    await t.test("Roster recheck allows, immediately refuses, and tolerates two outages for at most three days", async () => {
+      const allowLogin = await login("recheck-allowed@example.invalid");
+      const denyLogin = await login("recheck-denied@example.invalid");
+      const outageLogin = await login("recheck-outage@example.invalid");
+      let recheckTime = new Date(time.getTime());
+      recheckTime = new Date(recheckTime.getTime() + DAY + 1);
+      const makeRecheckApp = (answer: "allow" | "deny" | "unreachable") => {
+        const timeouts: number[] = [];
+        const recheckApp = createApp({ ...services, now: () => new Date(recheckTime), roster: async (email, timeout = 10_000) => {
+          timeouts.push(timeout);
+          if (answer === "unreachable") throw new RosterUnavailableError("synthetic unavailable");
+          if (answer === "deny") return { allowed: false } as const;
+          return { allowed: true, personId: `synthetic-${email.split("@")[0]}`, displayName: "Synthetic Recheck", goes_by: null } as const;
+        } });
+        return { recheckApp, timeouts };
+      };
+      const allowed = makeRecheckApp("allow");
+      await request(allowed.recheckApp).get("/api/auth/session").set("Cookie", allowLogin.cookie).expect(200);
+      assert.deepEqual(allowed.timeouts, [5_000], "allowed response is not retried");
+
+      const refused = makeRecheckApp("deny");
+      await request(refused.recheckApp).get("/api/auth/session").set("Cookie", denyLogin.cookie).expect(401);
+      assert.deepEqual(refused.timeouts, [5_000], "a real not-allowed answer is never retried");
+
+      const outage = makeRecheckApp("unreachable");
+      await request(outage.recheckApp).get("/api/auth/session").set("Cookie", outageLogin.cookie).expect(200);
+      assert.deepEqual(outage.timeouts, [5_000, 8_000], "outage receives exactly one retry");
+      const outageToken = outageLogin.cookie.split("=")[1]!;
+      const [afterOutage] = await testDb.select().from(sessions).where(eq(sessions.hash, hashToken(outageToken)));
+      assert(afterOutage!.lastRosterCheckAt.getTime() > afterOutage!.lastRosterSuccessAt.getTime());
+      recheckTime = new Date(recheckTime.getTime() + 59 * 60_000);
+      await request(outage.recheckApp).get("/api/auth/session").set("Cookie", outageLogin.cookie).expect(200);
+      assert.equal(outage.timeouts.length, 2, "failed lookup is throttled for one hour");
+      recheckTime = new Date(recheckTime.getTime() + 60_000);
+      await request(outage.recheckApp).get("/api/auth/session").set("Cookie", outageLogin.cookie).expect(200);
+      assert.deepEqual(outage.timeouts.slice(2), [5_000, 8_000]);
+      recheckTime = new Date(afterOutage!.lastRosterSuccessAt.getTime() + 3 * DAY);
+      await request(outage.recheckApp).get("/api/auth/session").set("Cookie", outageLogin.cookie).expect(401);
+    });
+    await t.test("announcements, notice visibility, role-filtered apps, and admin-only audit API", async () => {
+      const featureMember = await login("feature-member@example.invalid");
+      await request(app).post("/api/announcements").set("Cookie", featureMember.cookie)
+        .send({ title: "Member denied", body: "No", placement: "both" }).expect(403);
+      const [bootstrapGrant] = await testDb.select().from(grants).where(eq(grants.personId, "synthetic-admin"));
+      assert(bootstrapGrant && !bootstrapGrant.endedAt);
+      await request(app).post(`/api/admin/grants/${bootstrapGrant.id}/end`).set("Cookie", adminCookie).expect(409);
+      const created = await request(app).post("/api/announcements").set("Cookie", editorCookie)
+        .send({ title: "Synthetic family notice", body: "Test paragraph", placement: "both" }).expect(201);
+      assert.match(created.body.date, /^\d{4}-\d{2}-\d{2}$/);
+      const expectedHideAfter = new Date(`${created.body.date}T00:00:00.000Z`);
+      expectedHideAfter.setUTCDate(expectedHideAfter.getUTCDate() + 60);
+      assert.equal(created.body.hideAfter, expectedHideAfter.toISOString().slice(0, 10));
+      await request(app).get("/api/announcements").set("Cookie", featureMember.cookie)
+        .expect(200).expect(res => assert(res.body.some((row: { id: string }) => row.id === created.body.id)));
+      await request(app).get("/api/home").set("Cookie", featureMember.cookie)
+        .expect(200).expect(res => assert(res.body.reminders.some((row: { id: string }) => row.id === created.body.id)));
+      await request(app).patch(`/api/announcements/${created.body.id}`).set("Cookie", editorCookie)
+        .send({ title: "Edited family notice", body: "Updated text", date: created.body.date,
+          placement: "both", hideAfter: created.body.hideAfter }).expect(200);
+      await request(app).post(`/api/announcements/${created.body.id}/retire`).set("Cookie", editorCookie).expect(200);
+      const [retired] = await testDb.select().from(announcements).where(eq(announcements.id, created.body.id));
+      assert(retired!.retiredAt);
+
+      await request(app).put("/api/admin/home-notice").set("Cookie", editorCookie)
+        .send({ text: "Private notice", visibility: "signed-in" }).expect(200);
+      await request(app).get("/api/public/home-notice").expect(204);
+      await request(app).put("/api/admin/home-notice").set("Cookie", editorCookie)
+        .send({ text: "Public synthetic notice", visibility: "public" }).expect(200);
+      const publicNotice = await request(app).get("/api/public/home-notice").expect(200);
+      assert.deepEqual(Object.keys(publicNotice.body), ["text"]);
+      assert.equal(publicNotice.body.text, "Public synthetic notice");
+
+      const memberApps = await request(app).get("/api/apps").set("Cookie", featureMember.cookie).expect(200);
+      assert.deepEqual(memberApps.body.map((item: { id: string }) => item.id).sort(), ["calendar", "roster"]);
+      const adminApps = await request(app).get("/api/admin/apps").set("Cookie", adminCookie).expect(200);
+      assert.equal(adminApps.body.length, 4);
+      await request(app).put("/api/admin/apps").set("Cookie", editorCookie)
+        .send({ apps: adminApps.body }).expect(403);
+      await request(app).put("/api/admin/apps").set("Cookie", adminCookie)
+        .send({ apps: adminApps.body }).expect(200);
+      const adminHome = await request(app).get("/api/home").set("Cookie", adminCookie).expect(200);
+      assert.deepEqual(adminHome.body.apps.map((item: { id: string }) => item.id).sort(), ["calendar", "cap-table", "forecast", "roster"]);
+
+      await request(app).get("/api/admin/audit").set("Cookie", editorCookie).expect(403);
+      const auditPage = await request(app).get("/api/admin/audit?page=1&personId=synthetic-editor&action=announcement-create")
+        .set("Cookie", adminCookie).expect(200);
+      assert.equal(auditPage.body.items.length, 1);
+      assert.equal(auditPage.body.items[0].actorPersonId, "synthetic-editor");
+      assert.equal(auditPage.body.items[0].action, "announcement-create");
+      assert.equal(auditPage.body.pageSize, 50);
+      const events = await testDb.select().from(auditLog).where(eq(auditLog.action, "notice-edit"));
+      assert.equal(events.length, 2);
+      const appEvents = await testDb.select().from(auditLog).where(eq(auditLog.action, "apps-edit"));
+      assert.equal(appEvents.length, 1);
     });
     await t.test("ending a grant immediately removes editor rights; history remains", async () => {
       const created = await request(app).post("/api/admin/grants").set("Cookie", adminCookie)
@@ -318,7 +421,7 @@ test("HWD foundation: isolated development security suite", async (t) => {
         console.info("Browser: submitted sign-in; console link; Continue click signed in; member has no Admin");
         // Grant through the admin API, never by bypassing browser authentication.
         await request(app).post("/api/admin/grants").set("Cookie", adminCookie)
-          .send({ personId: "synthetic-browser", displayName: "Synthetic Browser", role: "editor" }).expect(201);
+          .send({ personId: "synthetic-browser", displayName: "Synthetic Browser", role: "admin" }).expect(201);
         await page.reload();
         await page.getByTestId("link-nav-admin").filter({ visible: true }).click();
         await page.getByTestId("button-upload-pdf").click();
@@ -346,8 +449,61 @@ test("HWD foundation: isolated development security suite", async (t) => {
         await page.screenshot({ path: "../../generated-artifacts/hwd-desktop-members.jpg", fullPage: true });
         await page.goto(`${origin}/`);
         await page.getByTestId("link-nav-meetings").waitFor();
+        await page.waitForFunction(() =>
+          document.querySelector('[data-testid="link-nav-calendar"]')?.getAttribute("href") === "https://calendar.hwdfarm.com",
+        );
+        assert.equal(await page.getByTestId("link-nav-calendar").getAttribute("href"), "https://calendar.hwdfarm.com");
         await page.screenshot({ path: "../../generated-artifacts/hwd-home-desktop.jpg", fullPage: true });
         console.info("Browser: upload, metadata edit, replacement, meeting document and note all visible");
+        await page.goto(`${origin}/admin/announcements`);
+        await page.getByTestId("form-announcement").waitFor();
+        console.info("Browser: Admin Announcements form loaded");
+        await page.getByTestId("input-announcement-title").fill("Browser synthetic announcement");
+        await page.getByTestId("input-announcement-body").fill("Announcement admin form walkthrough.");
+        const defaultDate = await page.getByTestId("input-announcement-date").inputValue();
+        const hideAfter = await page.getByTestId("input-announcement-hide-after").inputValue();
+        const hideAfterDate = new Date(`${defaultDate}T00:00:00.000Z`);
+        hideAfterDate.setUTCDate(hideAfterDate.getUTCDate() + 60);
+        assert.equal(hideAfter, hideAfterDate.toISOString().slice(0, 10), "admin form defaults hide-after to 60 days");
+        const announcementSaved = page.waitForResponse(response =>
+          response.url().includes("/api/announcements") && response.request().method() === "POST" && response.status() === 201);
+        await page.getByTestId("button-save-announcement").click();
+        await announcementSaved;
+        const [browserAnnouncement] = await testDb.select().from(announcements)
+          .where(eq(announcements.title, "Browser synthetic announcement"));
+        assert(browserAnnouncement);
+        await page.getByTestId(`admin-announcement-${browserAnnouncement.id}`).waitFor();
+
+        await page.goto(`${origin}/admin/home-notice`);
+        await page.getByTestId("form-home-notice").waitFor();
+        console.info("Browser: Home notice form loaded");
+        await page.getByTestId("input-home-notice").fill("Browser walkthrough notice");
+        const noticeSaved = page.waitForResponse(response =>
+          response.url().includes("/api/admin/home-notice") && response.request().method() === "PUT" && response.status() === 200);
+        await page.getByTestId("button-save-home-notice").click();
+        await noticeSaved;
+        await page.goto(`${origin}/admin/apps`);
+        await page.getByTestId("form-app-links").waitFor();
+        console.info("Browser: Apps form loaded");
+        const appsSaved = page.waitForResponse(response =>
+          response.url().includes("/api/admin/apps") && response.request().method() === "PUT" && response.status() === 200);
+        await page.getByTestId("button-save-app-links").click();
+        await appsSaved;
+        await page.goto(`${origin}/admin/people`);
+        await page.getByTestId("form-create-grant").waitFor();
+        console.info("Browser: People form loaded");
+        await page.getByTestId("input-grant-person-id").fill("synthetic-browser-helper");
+        await page.getByTestId("input-grant-display-name").fill("Synthetic Browser Helper");
+        const grantCreated = page.waitForResponse(response =>
+          response.url().includes("/api/admin/grants") && response.request().method() === "POST" && response.status() === 201);
+        await page.getByTestId("button-create-grant").click();
+        await grantCreated;
+        await page.getByText("granted by synthetic-browser", { exact: false }).waitFor();
+        await page.goto(`${origin}/admin/audit`);
+        await page.getByRole("heading", { name: "Audit log" }).waitFor();
+        await page.getByTestId("input-audit-person").waitFor();
+        await page.getByTestId("select-audit-action").waitFor();
+        console.info("Browser: Admin Announcements, Home notice, Apps, People and Audit pages loaded; forms exercised");
         await page.setViewportSize({ width: 390, height: 844 });
         await page.getByTestId("button-menu").click();
         await page.getByTestId("link-nav-meetings").filter({ visible: true }).click();
@@ -368,6 +524,7 @@ test("HWD foundation: isolated development security suite", async (t) => {
         console.info("Browser: phone menu, no overflow, retire/history and sign-out verified");
         assert.deepEqual(errors, [], "No uncaught browser exceptions");
       } finally {
+        await page.unrouteAll({ behavior: "ignoreErrors" });
         await page.close(); await browser.close();
         await new Promise<void>((resolve, reject) => server.close(error => error ? reject(error) : resolve()));
       }

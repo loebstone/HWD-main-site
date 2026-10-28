@@ -1,7 +1,7 @@
 import { useState, type ReactNode } from "react";
 import { Link, useLocation } from "wouter";
 import { useQueryClient } from "@tanstack/react-query";
-import { useSignOut } from "@workspace/api-client-react";
+import { useGetAppLinks, useSignOut } from "@workspace/api-client-react";
 import { ArrowUpRight, LogOut, Menu, X } from "lucide-react";
 import { useSession, nameOf, canEdit } from "@/lib/session";
 import { cn } from "@/lib/utils";
@@ -9,7 +9,7 @@ import { cn } from "@/lib/utils";
 const NAV = [
   { label: "Home", href: "/" },
   { label: "Meetings", href: "/meetings" },
-  { label: "Calendar", href: "https://calendar.hwdfarm.com", external: true },
+  { label: "Calendar", href: "/calendar-link", external: true },
   { label: "Logging", href: "/logging" },
   { label: "Governing Docs & Policies", href: "/governing" },
   { label: "Photo Archive", href: "/photo-archive" },
@@ -22,6 +22,8 @@ export function AppShell({ children }: { children: ReactNode }) {
   const [open, setOpen] = useState(false);
   const qc = useQueryClient();
   const signOut = useSignOut();
+  const { data: apps } = useGetAppLinks();
+  const calendarUrl = apps?.find((app) => app.id === "calendar")?.url;
 
   const items = canEdit(me) ? [...NAV, { label: "Admin", href: "/admin" }] : NAV;
   const isActive = (href: string) => (href === "/" ? location === "/" : location.startsWith(href));
@@ -35,10 +37,11 @@ export function AppShell({ children }: { children: ReactNode }) {
   const links = (mobile: boolean) =>
     items.map((it) =>
       "external" in it && it.external ? (
-        <a key={it.label} href={it.href} target="_blank" rel="noopener noreferrer"
+        <a key={it.label} href={calendarUrl || undefined} target="_blank" rel="noopener noreferrer"
+          aria-disabled={!calendarUrl} onClick={(event) => { if (!calendarUrl) event.preventDefault(); }}
           className={cn("inline-flex items-center gap-1 rounded-md px-3 py-2 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors", mobile && "text-lg py-3")}
           data-testid="link-nav-calendar">
-          {it.label}<ArrowUpRight className="h-3.5 w-3.5" />
+          {it.label}{calendarUrl && <ArrowUpRight className="h-3.5 w-3.5" />}
         </a>
       ) : (
         <Link key={it.label} href={it.href} onClick={() => setOpen(false)}

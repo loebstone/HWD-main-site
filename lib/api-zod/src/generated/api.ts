@@ -59,6 +59,23 @@ export const SignOutResponse = zod.object({
 })
 
 
+export const getPublicHomeNoticeResponseTextMax = 10000;
+
+
+
+export const GetPublicHomeNoticeResponse = zod.object({
+  "text": zod.string().max(getPublicHomeNoticeResponseTextMax)
+})
+
+
+export const getHomeResponseNoticeTextMax = 10000;
+
+export const getHomeResponseAppsItemLabelMax = 100;
+
+export const getHomeResponseAppsItemUrlMax = 2048;
+
+
+
 export const GetHomeResponse = zod.object({
   "documentCount": zod.number().int(),
   "recentDocuments": zod.array(zod.object({
@@ -76,6 +93,27 @@ export const GetHomeResponse = zod.object({
   "uploadedAt": zod.coerce.date(),
   "retiredAt": zod.coerce.date().nullable(),
   "replaces": zod.string().nullable()
+})),
+  "notice": zod.object({
+  "text": zod.string().max(getHomeResponseNoticeTextMax),
+  "visibility": zod.enum(['signed-in', 'public'])
+}),
+  "reminders": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "title": zod.string(),
+  "body": zod.string(),
+  "date": zod.coerce.date(),
+  "placement": zod.enum(['reminders', 'announcements', 'both']),
+  "hideAfter": zod.coerce.date(),
+  "createdBy": zod.string(),
+  "createdByName": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "retiredAt": zod.coerce.date().nullable()
+})),
+  "apps": zod.array(zod.object({
+  "id": zod.enum(['calendar', 'roster', 'forecast', 'cap-table']),
+  "label": zod.string().min(1).max(getHomeResponseAppsItemLabelMax),
+  "url": zod.string().url().max(getHomeResponseAppsItemUrlMax)
 }))
 })
 
@@ -260,6 +298,213 @@ export const OpenDocumentParams = zod.object({
 })
 
 export const OpenDocumentResponse = zod.unknown()
+
+
+export const listAnnouncementsQueryShowPastDefault = false;
+
+export const ListAnnouncementsQueryParams = zod.object({
+  "showPast": zod.coerce.boolean().default(listAnnouncementsQueryShowPastDefault)
+})
+
+export const ListAnnouncementsResponseItem = zod.object({
+  "id": zod.string().uuid(),
+  "title": zod.string(),
+  "body": zod.string(),
+  "date": zod.coerce.date(),
+  "placement": zod.enum(['reminders', 'announcements', 'both']),
+  "hideAfter": zod.coerce.date(),
+  "createdBy": zod.string(),
+  "createdByName": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "retiredAt": zod.coerce.date().nullable()
+})
+export const ListAnnouncementsResponse = zod.array(ListAnnouncementsResponseItem)
+
+
+export const createAnnouncementBodyTitleMax = 250;
+
+export const createAnnouncementBodyBodyMax = 10000;
+
+
+
+export const CreateAnnouncementBody = zod.object({
+  "title": zod.string().min(1).max(createAnnouncementBodyTitleMax),
+  "body": zod.string().max(createAnnouncementBodyBodyMax),
+  "date": zod.coerce.date().optional(),
+  "placement": zod.enum(['reminders', 'announcements', 'both']),
+  "hideAfter": zod.coerce.date().optional()
+})
+
+export const CreateAnnouncementResponse = zod.object({
+  "id": zod.string().uuid(),
+  "title": zod.string(),
+  "body": zod.string(),
+  "date": zod.coerce.date(),
+  "placement": zod.enum(['reminders', 'announcements', 'both']),
+  "hideAfter": zod.coerce.date(),
+  "createdBy": zod.string(),
+  "createdByName": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "retiredAt": zod.coerce.date().nullable()
+})
+
+
+export const UpdateAnnouncementParams = zod.object({
+  "id": zod.coerce.string().uuid()
+})
+
+export const updateAnnouncementBodyTitleMax = 250;
+
+export const updateAnnouncementBodyBodyMax = 10000;
+
+
+
+export const UpdateAnnouncementBody = zod.object({
+  "title": zod.string().min(1).max(updateAnnouncementBodyTitleMax),
+  "body": zod.string().max(updateAnnouncementBodyBodyMax),
+  "date": zod.coerce.date().optional(),
+  "placement": zod.enum(['reminders', 'announcements', 'both']),
+  "hideAfter": zod.coerce.date().optional()
+})
+
+export const UpdateAnnouncementResponse = zod.object({
+  "id": zod.string().uuid(),
+  "title": zod.string(),
+  "body": zod.string(),
+  "date": zod.coerce.date(),
+  "placement": zod.enum(['reminders', 'announcements', 'both']),
+  "hideAfter": zod.coerce.date(),
+  "createdBy": zod.string(),
+  "createdByName": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "retiredAt": zod.coerce.date().nullable()
+})
+
+
+export const RetireAnnouncementParams = zod.object({
+  "id": zod.coerce.string().uuid()
+})
+
+export const RetireAnnouncementResponse = zod.object({
+  "message": zod.string()
+})
+
+
+export const getAppLinksResponseLabelMax = 100;
+
+export const getAppLinksResponseUrlMax = 2048;
+
+
+
+export const GetAppLinksResponseItem = zod.object({
+  "id": zod.enum(['calendar', 'roster', 'forecast', 'cap-table']),
+  "label": zod.string().min(1).max(getAppLinksResponseLabelMax),
+  "url": zod.string().url().max(getAppLinksResponseUrlMax)
+})
+export const GetAppLinksResponse = zod.array(GetAppLinksResponseItem)
+
+
+export const getHomeNoticeResponseTextMax = 10000;
+
+
+
+export const GetHomeNoticeResponse = zod.object({
+  "text": zod.string().max(getHomeNoticeResponseTextMax),
+  "visibility": zod.enum(['signed-in', 'public'])
+})
+
+
+export const updateHomeNoticeBodyTextMax = 10000;
+
+
+
+export const UpdateHomeNoticeBody = zod.object({
+  "text": zod.string().max(updateHomeNoticeBodyTextMax),
+  "visibility": zod.enum(['signed-in', 'public'])
+})
+
+export const updateHomeNoticeResponseTextMax = 10000;
+
+
+
+export const UpdateHomeNoticeResponse = zod.object({
+  "text": zod.string().max(updateHomeNoticeResponseTextMax),
+  "visibility": zod.enum(['signed-in', 'public'])
+})
+
+
+export const getAdminAppLinksResponseLabelMax = 100;
+
+export const getAdminAppLinksResponseUrlMax = 2048;
+
+
+
+export const GetAdminAppLinksResponseItem = zod.object({
+  "id": zod.enum(['calendar', 'roster', 'forecast', 'cap-table']),
+  "label": zod.string().min(1).max(getAdminAppLinksResponseLabelMax),
+  "url": zod.string().url().max(getAdminAppLinksResponseUrlMax)
+})
+export const GetAdminAppLinksResponse = zod.array(GetAdminAppLinksResponseItem)
+
+
+export const updateAppLinksBodyAppsItemLabelMax = 100;
+
+export const updateAppLinksBodyAppsItemUrlMax = 2048;
+
+export const updateAppLinksBodyAppsMin = 4;
+export const updateAppLinksBodyAppsMax = 4;
+
+
+
+export const UpdateAppLinksBody = zod.object({
+  "apps": zod.array(zod.object({
+  "id": zod.enum(['calendar', 'roster', 'forecast', 'cap-table']),
+  "label": zod.string().min(1).max(updateAppLinksBodyAppsItemLabelMax),
+  "url": zod.string().url().max(updateAppLinksBodyAppsItemUrlMax)
+})).min(updateAppLinksBodyAppsMin).max(updateAppLinksBodyAppsMax)
+})
+
+export const updateAppLinksResponseLabelMax = 100;
+
+export const updateAppLinksResponseUrlMax = 2048;
+
+
+
+export const UpdateAppLinksResponseItem = zod.object({
+  "id": zod.enum(['calendar', 'roster', 'forecast', 'cap-table']),
+  "label": zod.string().min(1).max(updateAppLinksResponseLabelMax),
+  "url": zod.string().url().max(updateAppLinksResponseUrlMax)
+})
+export const UpdateAppLinksResponse = zod.array(UpdateAppLinksResponseItem)
+
+
+export const listAuditLogQueryPageDefault = 1;
+
+export const listAuditLogQueryPersonIdMax = 100;
+
+
+
+export const ListAuditLogQueryParams = zod.object({
+  "page": zod.coerce.number().int().min(1).default(listAuditLogQueryPageDefault),
+  "personId": zod.coerce.string().max(listAuditLogQueryPersonIdMax).optional(),
+  "action": zod.enum(['sign-in', 'sign-out', 'document-open', 'document-upload', 'document-replace', 'document-retire', 'grant-create', 'grant-end', 'announcement-create', 'announcement-edit', 'announcement-retire', 'notice-edit', 'apps-edit']).optional()
+})
+
+export const ListAuditLogResponse = zod.object({
+  "items": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "at": zod.coerce.date(),
+  "actorPersonId": zod.string(),
+  "actorName": zod.string(),
+  "action": zod.enum(['sign-in', 'sign-out', 'document-open', 'document-upload', 'document-replace', 'document-retire', 'grant-create', 'grant-end', 'announcement-create', 'announcement-edit', 'announcement-retire', 'notice-edit', 'apps-edit']),
+  "targetId": zod.string().nullable(),
+  "description": zod.string(),
+  "visitorAddress": zod.string()
+})),
+  "page": zod.number().int(),
+  "pageSize": zod.number().int(),
+  "total": zod.number().int()
+})
 
 
 export const ListGrantsResponseItem = zod.object({

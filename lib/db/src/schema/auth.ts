@@ -22,6 +22,7 @@ export const sessions = pgTable("site_sessions", {
   expiresAt: time("expires_at").notNull(),
   lastRenewedAt: time("last_renewed_at").notNull().defaultNow(),
   lastRosterCheckAt: time("last_roster_check_at").notNull().defaultNow(),
+  lastRosterSuccessAt: time("last_roster_success_at").notNull().defaultNow(),
   endedAt: time("ended_at"),
 });
 export const grants = pgTable("site_grants", {

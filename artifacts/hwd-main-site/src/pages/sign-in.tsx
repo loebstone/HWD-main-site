@@ -1,14 +1,16 @@
 import { useState } from "react";
-import { useRequestSignIn } from "@workspace/api-client-react";
+import { useGetPublicHomeNotice, useRequestSignIn } from "@workspace/api-client-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { AuthFrame } from "@/components/auth-frame";
+import { NoticeText } from "@/components/notice-text";
 
 export const NEUTRAL = "If that address is on the Farm roster, a link is on its way";
 
 export default function SignInPage() {
   const request = useRequestSignIn();
+  const publicNotice = useGetPublicHomeNotice();
   const [email, setEmail] = useState("");
   const [sent, setSent] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -25,6 +27,10 @@ export default function SignInPage() {
 
   return (
     <AuthFrame>
+      {publicNotice.data?.text && <aside className="mb-7 rounded-lg border-l-4 border-primary bg-accent/50 px-4 py-3" data-testid="notice-public">
+        <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground">From HWD Farm</p>
+        <p className="mt-1"><NoticeText text={publicNotice.data.text} /></p>
+      </aside>}
       {sent ? (
         <div className="space-y-4" data-testid="status-link-sent">
           <h1 className="text-3xl md:text-4xl">Check your email</h1>

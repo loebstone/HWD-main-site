@@ -69,6 +69,16 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/Message" }
+  /public/home-notice:
+    get:
+      operationId: getPublicHomeNotice
+      responses:
+        "200":
+          description: Public notice text only; never returns signed-in-only notice
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PublicNotice" }
+        "204": { description: No public notice is configured }
   /home:
     get:
       operationId: getHome
@@ -173,6 +183,123 @@ paths:
               schema: { type: string, format: binary }
         "302": { description: Audited external-link redirect }
         "401": { description: Authentication required }
+  /announcements:
+    get:
+      operationId: listAnnouncements
+      parameters:
+        - { name: showPast, in: query, schema: { type: boolean, default: false } }
+      responses:
+        "200":
+          description: Live announcements, optionally including past entries
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: "#/components/schemas/Announcement" } }
+    post:
+      operationId: createAnnouncement
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AnnouncementInput" }
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Announcement" }
+  /announcements/{id}:
+    patch:
+      operationId: updateAnnouncement
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AnnouncementInput" }
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Announcement" }
+  /announcements/{id}/retire:
+    post:
+      operationId: retireAnnouncement
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        "200":
+          description: Retired, retained in the database
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Message" }
+  /apps:
+    get:
+      operationId: getAppLinks
+      responses:
+        "200":
+          description: App links permitted for the signed-in role
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: "#/components/schemas/AppLink" } }
+  /admin/home-notice:
+    get:
+      operationId: getHomeNotice
+      responses:
+        "200":
+          description: Current notice and visibility
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/HomeNotice" }
+    put:
+      operationId: updateHomeNotice
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/HomeNoticeInput" }
+      responses:
+        "200":
+          description: Updated notice
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/HomeNotice" }
+  /admin/apps:
+    get:
+      operationId: getAdminAppLinks
+      responses:
+        "200":
+          description: All editable app links
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: "#/components/schemas/AppLink" } }
+    put:
+      operationId: updateAppLinks
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AppLinksInput" }
+      responses:
+        "200":
+          description: Saved app links
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: "#/components/schemas/AppLink" } }
+  /admin/audit:
+    get:
+      operationId: listAuditLog
+      parameters:
+        - { name: page, in: query, schema: { type: integer, minimum: 1, default: 1 } }
+        - { name: personId, in: query, schema: { type: string, maxLength: 100 } }
+        - { name: action, in: query, schema: { $ref: "#/components/schemas/AuditAction" } }
+      responses:
+        "200":
+          description: Read-only page of newest audit events
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AuditPage" }
   /admin/grants:
     get:
       operationId: listGrants
@@ -277,10 +404,13 @@ components:
         replaces: { type: ["string", "null"] }
     HomeSummary:
       type: object
-      required: [documentCount, recentDocuments]
+      required: [documentCount, recentDocuments, notice, reminders, apps]
       properties:
         documentCount: { type: integer }
         recentDocuments: { type: array, items: { $ref: "#/components/schemas/Document" } }
+        notice: { $ref: "#/components/schemas/HomeNotice" }
+        reminders: { type: array, items: { $ref: "#/components/schemas/Announcement" } }
+        apps: { type: array, items: { $ref: "#/components/schemas/AppLink" } }
     GrantInput:
       type: object
       required: [personId, displayName, role]
@@ -299,3 +429,82 @@ components:
         grantedBy: { type: string }
         grantedAt: { type: string, format: date-time }
         endedAt: { type: ["string", "null"], format: date-time }
+    PublicNotice:
+      type: object
+      required: [text]
+      properties:
+        text: { type: string, maxLength: 10000 }
+    HomeNotice:
+      type: object
+      required: [text, visibility]
+      properties:
+        text: { type: string, maxLength: 10000 }
+        visibility: { type: string, enum: [signed-in, public] }
+    HomeNoticeInput:
+      type: object
+      required: [text, visibility]
+      properties:
+        text: { type: string, maxLength: 10000 }
+        visibility: { type: string, enum: [signed-in, public] }
+    AppLink:
+      type: object
+      required: [id, label, url]
+      properties:
+        id: { type: string, enum: [calendar, roster, forecast, cap-table] }
+        label: { type: string, minLength: 1, maxLength: 100 }
+        url: { type: string, format: uri, maxLength: 2048 }
+    AppLinksInput:
+      type: object
+      required: [apps]
+      properties:
+        apps:
+          type: array
+          minItems: 4
+          maxItems: 4
+          items: { $ref: "#/components/schemas/AppLink" }
+    Announcement:
+      type: object
+      required: [id, title, body, date, placement, hideAfter, createdBy, createdByName, createdAt, retiredAt]
+      properties:
+        id: { type: string, format: uuid }
+        title: { type: string }
+        body: { type: string }
+        date: { type: string, format: date }
+        placement: { type: string, enum: [reminders, announcements, both] }
+        hideAfter: { type: string, format: date }
+        createdBy: { type: string }
+        createdByName: { type: string }
+        createdAt: { type: string, format: date-time }
+        retiredAt: { type: ["string", "null"], format: date-time }
+    AnnouncementInput:
+      type: object
+      required: [title, body, placement]
+      properties:
+        title: { type: string, minLength: 1, maxLength: 250 }
+        body: { type: string, maxLength: 10000 }
+        date: { type: string, format: date }
+        placement: { type: string, enum: [reminders, announcements, both] }
+        hideAfter: { type: string, format: date }
+    AuditAction:
+      type: string
+      enum: [sign-in, sign-out, document-open, document-upload, document-replace, document-retire, grant-create, grant-end, announcement-create, announcement-edit, announcement-retire, notice-edit, apps-edit]
+    AuditEntry:
+      type: object
+      required: [id, at, actorPersonId, actorName, action, targetId, description, visitorAddress]
+      properties:
+        id: { type: string, format: uuid }
+        at: { type: string, format: date-time }
+        actorPersonId: { type: string }
+        actorName: { type: string }
+        action: { $ref: "#/components/schemas/AuditAction" }
+        targetId: { type: ["string", "null"] }
+        description: { type: string }
+        visitorAddress: { type: string }
+    AuditPage:
+      type: object
+      required: [items, page, pageSize, total]
+      properties:
+        items: { type: array, items: { $ref: "#/components/schemas/AuditEntry" } }
+        page: { type: integer }
+        pageSize: { type: integer }
+        total: { type: integer }

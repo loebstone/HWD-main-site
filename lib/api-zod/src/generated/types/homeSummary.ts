@@ -5,9 +5,15 @@
  * HWD Main Site private family API
  * OpenAPI spec version: 1.0.0
  */
+import type { Announcement } from './announcement';
+import type { AppLink } from './appLink';
 import type { Document } from './document';
+import type { HomeNotice } from './homeNotice';
 
 export interface HomeSummary {
   documentCount: number;
   recentDocuments: Document[];
+  notice: HomeNotice;
+  reminders: Announcement[];
+  apps: AppLink[];
 }

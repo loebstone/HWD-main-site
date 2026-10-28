@@ -7,7 +7,7 @@ import NotFound from "@/pages/not-found";
 import { Redirect, Route, Switch, useLocation, Router as WouterRouter } from "wouter";
 import { AuthGate } from "@/components/auth-gate";
 import { AppShell } from "@/components/app-shell";
-import { AdminGuard } from "@/components/admin/admin-guard";
+import { AdminGuard, AdminOnlyGuard } from "@/components/admin/admin-guard";
 import SignInPage from "@/pages/sign-in";
 import AuthContinuePage from "@/pages/auth-continue";
 import HomePage from "@/pages/home";
@@ -15,7 +15,7 @@ import MeetingsPage from "@/pages/meetings";
 import AnnouncementsPage from "@/pages/announcements";
 import { ShareholdersPage, DirectorsPage, LoggingPage, GoverningPage, PhotoArchivePage } from "@/pages/section-page";
 import AdminDocumentsPage from "@/pages/admin/admin-documents";
-import { AdminAnnouncementsPage, AdminPeoplePage } from "@/pages/admin/admin-placeholder";
+import { AdminAnnouncementsPage, AdminAppsPage, AdminAuditPage, AdminHomeNoticePage, AdminPeoplePage } from "@/pages/admin/admin-features";
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { refetchOnWindowFocus: false } },
@@ -27,6 +27,7 @@ function RoutedErrorBoundary({ children }: { children: ReactNode }) {
 }
 
 const admin = (C: ComponentType) => () => <AdminGuard><C /></AdminGuard>;
+const adminOnly = (C: ComponentType) => () => <AdminOnlyGuard><C /></AdminOnlyGuard>;
 
 function PrivateRoutes() {
   return (
@@ -45,7 +46,10 @@ function PrivateRoutes() {
             <Route path="/admin"><Redirect to="/admin/documents" /></Route>
             <Route path="/admin/documents" component={admin(AdminDocumentsPage)} />
             <Route path="/admin/announcements" component={admin(AdminAnnouncementsPage)} />
-            <Route path="/admin/people" component={admin(AdminPeoplePage)} />
+            <Route path="/admin/home-notice" component={admin(AdminHomeNoticePage)} />
+            <Route path="/admin/apps" component={adminOnly(AdminAppsPage)} />
+            <Route path="/admin/people" component={adminOnly(AdminPeoplePage)} />
+            <Route path="/admin/audit" component={adminOnly(AdminAuditPage)} />
             <Route component={NotFound} />
           </Switch>
         </RoutedErrorBoundary>
