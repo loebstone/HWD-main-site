@@ -8,4 +8,6 @@
 
 export interface HealthStatus {
   status: string;
+  /** API bundle build identifier (UTC timestamp plus random suffix); source-unbundled in source-mode tests */
+  build: string;
 }

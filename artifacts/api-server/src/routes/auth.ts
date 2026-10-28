@@ -11,6 +11,9 @@ import type { Services } from "../lib/services";
 export function authRoutes(s: Services) {
   const router = Router();
   router.get("/verify", async (req, res): Promise<void> => {
+    req.log.info({ forwardedFor: req.get("x-forwarded-for") ?? null,
+      socketAddress: req.socket.remoteAddress ?? null, resolvedIp: req.ip ?? null,
+      trustedProxyHops: req.app.get("trust proxy") }, "Verify proxy diagnostic");
     if (!await withinLimit(s, "verify-ip", visitorAddress(req), 10, 900)) {
       res.status(429).json({ error: "Too many attempts. Please wait 15 minutes." }); return;
     }

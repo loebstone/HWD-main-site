@@ -393,9 +393,10 @@ components:
         sourceHash: { type: [string, "null"] }
     HealthStatus:
       type: object
-      required: [status]
+      required: [status, build]
       properties:
         status: { type: string }
+        build: { type: string, description: "API bundle build identifier (UTC timestamp plus random suffix); source-unbundled in source-mode tests" }
     Message:
       type: object
       required: [message]

@@ -9,7 +9,8 @@ import * as zod from 'zod';
 
 
 export const HealthCheckResponse = zod.object({
-  "status": zod.string()
+  "status": zod.string(),
+  "build": zod.string().describe('API bundle build identifier (UTC timestamp plus random suffix); source-unbundled in source-mode tests')
 })
 
 

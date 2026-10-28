@@ -11,7 +11,6 @@ declare global {
     interface Request { siteIdentity?: SiteIdentity; siteSession?: SiteSession; }
   }
 }
-export const TRUSTED_PROXY_HOPS = 3;
 export const visitorAddress = (req: Request) => req.ip ?? req.socket.remoteAddress ?? "unknown";
 export const cookieOptions = () => ({
   httpOnly: true, secure: process.env.NODE_ENV === "production", sameSite: "lax" as const, path: "/",

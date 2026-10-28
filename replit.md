@@ -23,6 +23,7 @@ The private HWD Farm family website for Roster-approved sign-in, secure document
 - `MAIL_FROM` — sender address.
 - `BOOTSTRAP_PERSON_ID` — Roster person id eligible for the one-time first-admin grant.
 - `APP_ORIGIN` — explicit public origin in production; development may derive `https://$REPLIT_DEV_DOMAIN`.
+- `TRUSTED_PROXY_HOPS` — optional startup setting, integer 0–8: number of forwarding hops Replit adds in front of the app in this environment; set from the production diagnostic line, never guessed. Unset/invalid falls back to the audited development depth 3 with a startup log explaining why. Changing it requires a process restart, not a rebuild.
 - Resend is called through the connected Replit integration using `@replit/connectors-sdk`; there is no separate `RESEND_API_KEY` app variable.
 - Private App Storage uses the Replit-provided bucket configuration (`DEFAULT_OBJECT_STORAGE_BUCKET_ID`, `PRIVATE_OBJECT_DIR`, and `PUBLIC_OBJECT_SEARCH_PATHS` as applicable); do not make document objects public.
 - Missing optional Roster, mail, bootstrap, or origin configuration disables only the feature that needs it, with a clear server log. It does not block build/startup. Never invent a fallback identity, send development mail, or derive a production origin.
@@ -54,7 +55,8 @@ The private HWD Farm family website for Roster-approved sign-in, secure document
 
 ## Architecture and security decisions
 
-- **Proxy depth:** Express uses `trust proxy = 3`, counting from the socket/right-hand end, never `true` or the leftmost forwarded value. A development ingress audit on 2026-10-28 observed `visitor, ingress proxy, loopback router` in X-Forwarded-For with a loopback socket; depth 1 incorrectly selected loopback. The chain was stable across ordinary requests and requests supplying one/multiple spoofed XFF entries, which Replit stripped upstream. Depth 3 selects the edge-presented visitor and ignores any extra client-supplied prefix. This assumes requests arrive through that audited ingress, not a shorter alternate path; re-audit after routing changes. Production forwarding depth has not been instrumented and must be verified after Peter republishes.
+- **Proxy depth:** Express uses the numeric `TRUSTED_PROXY_HOPS` startup setting (0–8; explained fallback 3), counting from the socket/right-hand end, never `true` or the leftmost forwarded value. A development ingress audit on 2026-10-28 observed `visitor, ingress proxy, loopback router` in X-Forwarded-For with a loopback socket; depth 1 incorrectly selected loopback. The chain was stable across ordinary requests and requests supplying one/multiple spoofed XFF entries, which Replit stripped upstream. Depth 3 selects the edge-presented visitor on that development ingress. Production depth must be set from its diagnostic evidence, not assumed from development; re-audit after routing changes and account for shorter alternate ingress paths.
+- **Production evidence:** The API build embeds a fixed identifier in the format `<UTC ISO timestamp>-<8 random hex characters>`. Startup logs it once, and `GET /api/healthz` returns `{status, build}` so the served build can be matched to startup logs. Source-mode tests use the explicit identifier `source-unbundled`. Startup also logs the effective proxy depth, source, and reason. Each `GET /api/auth/verify` logs `forwardedFor`, `socketAddress`, `resolvedIp`, and `trustedProxyHops` before rate limiting, including refused requests; it never logs cookies, query strings, tokens, or request bodies. Use these lines after republishing to distinguish stale builds from an incorrect production forwarding depth.
 - Auth rate limits remain PostgreSQL-backed. Throttled link requests log the IP/email throttle flags (no email or token), while returning the same neutral body. Oversized JSON returns 413 with a plain size-limit message.
 - Admin-editable Farm app URLs must use HTTPS and host `hwdfarm.com` or a subdomain; credentials and suffix/lookalike hosts are refused with a clear validation message.
 
@@ -78,7 +80,7 @@ The private HWD Farm family website for Roster-approved sign-in, secure document
 
 ## Anonymous routes (closed list)
 
-- `GET /api/healthz` — liveness only; exposes no identity or document data.
+- `GET /api/healthz` — liveness and non-secret API build identifier only; exposes no identity or document data.
 - `GET /api/public/home-notice` — returns only the notice text when its visibility is public; returns no content when the notice is signed-in only.
 - `GET /api/auth/verify` — non-consuming continue-page preflight; token consumption is only by POST.
 - `POST /api/auth/link` — generic magic-link request; same visible response for allowed, denied, and unavailable Roster.

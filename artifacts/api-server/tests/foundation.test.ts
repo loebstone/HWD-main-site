@@ -20,7 +20,27 @@ import { logger } from "../src/lib/logger";
 import { fetchGoogle, fetchOldSitePdf, googleConfirmLink, OLD_SITE_INDEX, parseOldSiteCsv, PDF_LIMIT } from "../src/lib/old-site-fetch";
 import { planOldSiteRow } from "../src/lib/old-site-import";
 import { appLinkSchema, APP_LINK_URL_MESSAGE } from "../src/lib/site-content";
+import { BUILD_ID } from "../src/lib/build-identity";
+import { resolveProxyTrust } from "../src/lib/proxy-trust";
 import type { Services } from "../src/lib/services";
+
+test("proxy startup setting accepts only integer depths 0–8 with explained defaults", () => {
+  for (let hops = 0; hops <= 8; hops++) {
+    const value = resolveProxyTrust(String(hops));
+    assert.equal(value.hops, hops);
+    assert.equal(value.source, "environment");
+  }
+  assert.equal(resolveProxyTrust(" 2 ").hops, 2);
+  const unset = resolveProxyTrust(undefined);
+  assert.equal(unset.hops, 3);
+  assert.match(unset.reason, /unset/);
+  for (const raw of ["", " ", "-1", "9", "1.5", "1e0", "true", "Infinity", "NaN", "2oops"]) {
+    const value = resolveProxyTrust(raw);
+    assert.equal(value.hops, 3, raw);
+    assert.equal(value.source, "default", raw);
+    assert.match(value.reason, /invalid/, raw);
+  }
+});
 
 // Tests use one dedicated schema on the development DB, synthetic *.invalid identities,
 // stubbed Roster HTTP and in-memory file storage. No queries to public person/application rows.
@@ -100,6 +120,9 @@ test("HWD foundation: isolated development security suite", async (t) => {
     await t.test("health is anonymous, enforcing headers; every private API refuses anonymous access", async () => {
       const health = await request(app).get("/api/healthz");
       assert.equal(health.status, 200); assert.match(health.headers["content-security-policy"], /default-src 'none'/);
+      assert.deepEqual(health.body, { status: "ok", build: BUILD_ID });
+      const repeatedHealth = await request(app).get("/api/healthz").expect(200);
+      assert.equal(repeatedHealth.body.build, health.body.build);
       await request(app).get("/api/public/home-notice").expect(204);
       for (const path of ["/api/auth/session", "/api/home", "/api/apps", "/api/announcements", "/api/documents", `/api/documents/${randomUUID()}/open`, "/api/admin/grants", "/api/admin/audit", "/api/admin/apps", "/api/storage/objects/arbitrary"]) {
         const res = await request(app).get(path); assert.equal(res.status, 401, path);

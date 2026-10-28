@@ -14,16 +14,17 @@ import { announcementRoutes } from "./routes/announcements";
 import { auditRoutes } from "./routes/audit";
 import { oldSiteImportRoutes } from "./routes/old-site-import";
 import { adminSettingsRoutes, appLinkRoutes, publicHomeNoticeRoutes } from "./routes/settings";
-import { csrf, requireSession, TRUSTED_PROXY_HOPS } from "./middlewares/security";
+import { csrf, requireSession } from "./middlewares/security";
+import { PROXY_TRUST } from "./lib/proxy-trust";
+import { BUILD_ID } from "./lib/build-identity";
 import { publicDocument } from "./lib/documents";
 import { getAppLinks, getHomeNotice, listAnnouncements } from "./lib/site-content";
 
 export function createApp(services: Partial<Services> = {}): Express {
   const s = { ...defaultServices, ...services };
   const app = express();
-  // Audited Replit ingress: socket -> local router -> ingress proxy -> visitor.
-  // Count from the right; never trust client-supplied entries to the left.
-  app.set("trust proxy", TRUSTED_PROXY_HOPS);
+  // Bounded startup configuration, counted from the right; never trust all.
+  app.set("trust proxy", PROXY_TRUST.hops);
   app.disable("x-powered-by");
   app.use(helmet({ contentSecurityPolicy: { directives: {
     defaultSrc: ["'none'"], frameAncestors: ["'self'"], baseUri: ["'none'"], formAction: ["'self'"],
@@ -36,7 +37,7 @@ export function createApp(services: Partial<Services> = {}): Express {
   app.use(cookieParser());
   app.use(express.json({ limit: "64kb" }));
   app.use(csrf());
-  app.get("/api/healthz", (_req, res) => { res.json({ status: "ok" }); });
+  app.get("/api/healthz", (_req, res) => { res.json({ status: "ok", build: BUILD_ID }); });
   app.use("/api/auth", authRoutes(s));
   app.use("/api/public/home-notice", publicHomeNoticeRoutes(s));
   // All remaining API routes fail closed before route lookup or file access.
