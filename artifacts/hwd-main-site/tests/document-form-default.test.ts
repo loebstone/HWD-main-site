@@ -1,5 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { blankFormGroupDefault } from "../src/lib/document-form-default";
 
 test("a blank render cannot overwrite the group being reset for an edited or moved document", () => {
@@ -11,4 +12,9 @@ test("only a genuinely blank new form receives the first asynchronously loaded g
   assert.equal(blankFormGroupDefault(true, "", undefined, undefined, undefined), undefined);
   assert.equal(blankFormGroupDefault(true, "", undefined, undefined, "first-group"), "first-group");
   assert.equal(blankFormGroupDefault(false, "", undefined, undefined, "first-group"), undefined);
+});
+test("an unassigned document can load the group selector and Admin flags it for recovery", () => {
+  assert.equal(blankFormGroupDefault(true, "", null, undefined, "first-group"), "first-group");
+  const source = readFileSync(new URL("../src/pages/admin/admin-documents.tsx", import.meta.url), "utf8");
+  assert.match(source, /d\.groupId \? \(groupName\.get\(d\.groupId\).*: "Needs a group"/);
 });

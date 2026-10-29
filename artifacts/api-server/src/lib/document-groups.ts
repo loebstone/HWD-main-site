@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, inArray, isNull } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNull, or } from "drizzle-orm";
 import { documentGroups, documents, siteSettings, type db, type SiteIdentity } from "@workspace/db";
 import { z } from "zod";
 import { DEFAULT_GROUPS } from "../migrate-document-groups";
@@ -10,9 +10,10 @@ export class GroupError extends Error {
 export const activeGroups = (role: SiteIdentity["role"]) => and(
   isNull(documentGroups.retiredAt), role === "member" ? eq(documentGroups.visibility, "everyone") : undefined,
 );
-export function visibleDocumentFilter(s: Services, role: SiteIdentity["role"], includeRetiredGroups = false) {
-  return inArray(documents.groupId, s.db.select({ id: documentGroups.id }).from(documentGroups)
+export function visibleDocumentFilter(s: Services, role: SiteIdentity["role"], includeRetiredGroups = false, includeUnassigned = false) {
+  const assigned = inArray(documents.groupId, s.db.select({ id: documentGroups.id }).from(documentGroups)
     .where(includeRetiredGroups && role !== "member" ? undefined : activeGroups(role)));
+  return includeUnassigned && role !== "member" ? or(assigned, isNull(documents.groupId)) : assigned;
 }
 export async function listGroups(s: Services, role: SiteIdentity["role"]) {
   const groups = await s.db.select().from(documentGroups).where(activeGroups(role))

@@ -276,7 +276,8 @@ export const DocumentType = {
 
 export interface Document {
   id: string;
-  groupId: string;
+  /** @nullable */
+  groupId: string | null;
   title: string;
   section: LegacySection | null;
   /** @nullable */

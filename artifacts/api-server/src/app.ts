@@ -73,7 +73,7 @@ export function createApp(services: Partial<Services> = {}): Express {
   app.use("/api/admin/old-site-import", oldSiteImportRoutes(s));
   app.use("/api/admin", adminSettingsRoutes(s));
   app.get("/api/home", async (req, res): Promise<void> => {
-    const visible = and(isNull(documents.retiredAt), visibleDocumentFilter(s, req.siteIdentity!.role));
+    const visible = and(isNull(documents.retiredAt), visibleDocumentFilter(s, req.siteIdentity!.role, false, true));
     const [count] = await s.db.select({ value: sql<number>`count(*)::integer` }).from(documents).where(visible);
     const recent = await s.db.select().from(documents).where(visible).orderBy(desc(documents.uploadedAt)).limit(5);
     const groups = await listGroups(s, req.siteIdentity!.role);

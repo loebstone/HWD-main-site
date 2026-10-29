@@ -20,7 +20,7 @@ export function documentRoutes(s: Services) {
     const groupId = z.string().uuid().optional().parse(req.query.groupId);
     if (includeRetired && req.siteIdentity!.role === "member") { res.status(403).json({ error: "Editor access required" }); return; }
     const rows = await s.db.select().from(documents).where(and(
-      visibleDocumentFilter(s, req.siteIdentity!.role, includeRetired), groupId ? eq(documents.groupId, groupId) : undefined,
+      visibleDocumentFilter(s, req.siteIdentity!.role, includeRetired, true), groupId ? eq(documents.groupId, groupId) : undefined,
       section ? eq(documents.section, section) : undefined, includeRetired ? undefined : isNull(documents.retiredAt)))
       .orderBy(desc(documents.year), asc(documents.sortOrder), asc(documents.title));
     res.json(rows.map(publicDocument));
@@ -28,7 +28,7 @@ export function documentRoutes(s: Services) {
   router.get("/:id/open", async (req, res): Promise<void> => {
     const id = idOf(req.params.id);
     const [doc] = await s.db.select().from(documents).where(and(eq(documents.id, id), isNull(documents.retiredAt),
-      visibleDocumentFilter(s, req.siteIdentity!.role)));
+      visibleDocumentFilter(s, req.siteIdentity!.role, false, true)));
     if (!doc) { res.status(404).json({ error: "Document not found" }); return; }
     res.setHeader("Cache-Control", "no-store");
     res.setHeader("Referrer-Policy", "no-referrer");

@@ -39,12 +39,8 @@ export async function migrateDocumentGroups(target: Pool = pool) {
       await connection.query("INSERT INTO site_data_migrations(key,details) VALUES ('document-groups',$1)", [JSON.stringify(details)]);
       logger.info(details, "Document groups migration recorded");
     }
-    // Schema push must remain additive so old documents can be assigned before enforcing this.
-    await connection.query(`DO $$ BEGIN
-      IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conrelid='site_documents'::regclass AND conname='site_live_document_group') THEN
-        ALTER TABLE site_documents ADD CONSTRAINT site_live_document_group CHECK (retired_at IS NOT NULL OR group_id IS NOT NULL);
-      END IF;
-    END $$`);
+    // Keep group_id nullable permanently: Publish applies the development schema
+    // before this backfill can run. New uploads/moves require a group in the API.
     await connection.query("COMMIT");
     return existing.rows[0]?.details ?? (await connection.query("SELECT details FROM site_data_migrations WHERE key='document-groups'")).rows[0].details;
   } catch (error) {

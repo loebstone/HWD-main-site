@@ -169,7 +169,6 @@ test("HWD foundation: isolated development security suite", async (t) => {
       await connection.query("BEGIN");
       try {
         const before = await connection.query("SELECT id,section,year,retired_at,external_url FROM site_documents ORDER BY id");
-        await connection.query("ALTER TABLE site_documents DROP CONSTRAINT site_live_document_group");
         await connection.query(`UPDATE site_documents d SET group_id = original.previous_group_id
           FROM site_data_migrations m, jsonb_to_recordset(m.details->'originalAssignments')
             AS original(id uuid, section text, previous_group_id uuid)
@@ -177,8 +176,8 @@ test("HWD foundation: isolated development security suite", async (t) => {
         assert.equal((await connection.query("SELECT count(*)::int AS n FROM site_documents WHERE group_id IS NULL")).rows[0].n, 10);
         assert.deepEqual((await connection.query("SELECT id,section,year,retired_at,external_url FROM site_documents ORDER BY id")).rows, before.rows);
       } finally { await connection.query("ROLLBACK"); }
-      await assert.rejects(connection.query(`INSERT INTO site_documents(title,section,type,external_url,uploaded_by,uploaded_by_name)
-        VALUES ('Synthetic invalid','governing','link','https://example.invalid','synthetic','Synthetic')`), /site_live_document_group/);
+      assert.equal((await connection.query(`SELECT count(*)::int AS n FROM pg_constraint
+        WHERE conrelid='site_documents'::regclass AND conname='site_live_document_group'`)).rows[0].n, 0);
     });
     await t.test("health is anonymous, enforcing headers; every private API refuses anonymous access", async () => {
       const health = await request(app).get("/api/healthz");
@@ -338,6 +337,36 @@ test("HWD foundation: isolated development security suite", async (t) => {
       await request(app).get("/api/auth/session").set("Cookie", editorCookie).expect(200).expect(res => assert.equal(res.body.role, "editor"));
       await request(app).get("/api/admin/grants").set("Cookie", editorCookie).expect(403);
       assert.equal(grant.body.endedAt, null);
+    });
+    await t.test("unassigned documents remain recoverable by staff but absent from member listings, group pages and downloads", async () => {
+      const [unassigned] = await testDb.insert(documents).values({
+        title: "Synthetic needs a group", type: "link", externalUrl: "https://example.invalid/unassigned",
+        uploadedBy: "synthetic-admin", uploadedByName: "Synthetic Admin", uploadedAt: time,
+      }).returning();
+      const id = unassigned!.id;
+      for (const cookie of [adminCookie, editorCookie]) {
+        const list = await request(app).get("/api/documents").set("Cookie", cookie).expect(200);
+        assert(list.body.some((d: { id: string; groupId: string | null }) => d.id === id && d.groupId === null));
+        const home = await request(app).get("/api/home").set("Cookie", cookie).expect(200);
+        assert(home.body.recentDocuments.some((d: { id: string }) => d.id === id));
+        await request(app).get(`/api/documents/${id}/open`).set("Cookie", cookie).expect(302);
+        const group = await request(app).get(`/api/documents?groupId=${DEFAULT_GROUPS[0].id}`).set("Cookie", cookie).expect(200);
+        assert(!group.body.some((d: { id: string }) => d.id === id));
+      }
+      const memberList = await request(app).get("/api/documents").set("Cookie", memberCookie).expect(200);
+      assert(!memberList.body.some((d: { id: string }) => d.id === id));
+      const memberHome = await request(app).get("/api/home").set("Cookie", memberCookie).expect(200);
+      assert(!memberHome.body.recentDocuments.some((d: { id: string }) => d.id === id));
+      await request(app).get(`/api/documents/${id}/open`).set("Cookie", memberCookie).expect(404);
+      // The recorded migration must not reassign later unassigned/moved records.
+      await migrateDocumentGroups(isolatedPool);
+      assert.equal((await testDb.select().from(documents).where(eq(documents.id, id)))[0]!.groupId, null);
+      // Recovery uses the real audited move path, without deleting the record.
+      await request(app).post("/api/documents/move").set("Cookie", adminCookie)
+        .send({ ids: [id], groupId: DEFAULT_GROUPS[2].id }).expect(200);
+      assert((await testDb.select().from(auditLog).where(and(eq(auditLog.action, "document-move"), eq(auditLog.targetId, id)))).length === 1);
+      await request(app).get(`/api/documents/${id}/open`).set("Cookie", memberCookie).expect(302);
+      await request(app).post(`/api/documents/${id}/retire`).set("Cookie", adminCookie).expect(200);
     });
     await t.test("groups: staff visibility withheld on server, guessed PDF refused, moves audited and non-empty retirement refused", async () => {
       const input = { name: "Synthetic staff papers", description: "Staff-only synthetic fixture", layout: "list",

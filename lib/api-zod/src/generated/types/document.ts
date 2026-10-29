@@ -10,7 +10,8 @@ import type { LegacySection } from './legacySection';
 
 export interface Document {
   id: string;
-  groupId: string;
+  /** @nullable */
+  groupId: string | null;
   title: string;
   section: LegacySection | null;
   /** @nullable */

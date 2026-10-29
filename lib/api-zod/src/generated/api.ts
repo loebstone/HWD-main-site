@@ -293,7 +293,7 @@ export const GetHomeResponse = zod.object({
 })),
   "recentDocuments": zod.array(zod.object({
   "id": zod.string(),
-  "groupId": zod.string(),
+  "groupId": zod.string().nullable(),
   "title": zod.string(),
   "section": zod.union([zod.literal('shareholders'),zod.literal('directors'),zod.literal('governing'),zod.literal('logging'),zod.literal('photo_archive'),zod.literal(null)]).nullable(),
   "year": zod.number().int().nullable(),
@@ -372,7 +372,7 @@ export const GetDocumentGroupResponse = zod.object({
 }),
   "documents": zod.array(zod.object({
   "id": zod.string(),
-  "groupId": zod.string(),
+  "groupId": zod.string().nullable(),
   "title": zod.string(),
   "section": zod.union([zod.literal('shareholders'),zod.literal('directors'),zod.literal('governing'),zod.literal('logging'),zod.literal('photo_archive'),zod.literal(null)]).nullable(),
   "year": zod.number().int().nullable(),
@@ -519,7 +519,7 @@ export const ListDocumentsQueryParams = zod.object({
 
 export const ListDocumentsResponseItem = zod.object({
   "id": zod.string(),
-  "groupId": zod.string(),
+  "groupId": zod.string().nullable(),
   "title": zod.string(),
   "section": zod.union([zod.literal('shareholders'),zod.literal('directors'),zod.literal('governing'),zod.literal('logging'),zod.literal('photo_archive'),zod.literal(null)]).nullable(),
   "year": zod.number().int().nullable(),
@@ -566,7 +566,7 @@ export const CreateLinkDocumentBody = zod.object({
 
 export const CreateLinkDocumentResponse = zod.object({
   "id": zod.string(),
-  "groupId": zod.string(),
+  "groupId": zod.string().nullable(),
   "title": zod.string(),
   "section": zod.union([zod.literal('shareholders'),zod.literal('directors'),zod.literal('governing'),zod.literal('logging'),zod.literal('photo_archive'),zod.literal(null)]).nullable(),
   "year": zod.number().int().nullable(),
@@ -590,7 +590,7 @@ export const UploadDocumentBody = zod.object({
 
 export const UploadDocumentResponse = zod.object({
   "id": zod.string(),
-  "groupId": zod.string(),
+  "groupId": zod.string().nullable(),
   "title": zod.string(),
   "section": zod.union([zod.literal('shareholders'),zod.literal('directors'),zod.literal('governing'),zod.literal('logging'),zod.literal('photo_archive'),zod.literal(null)]).nullable(),
   "year": zod.number().int().nullable(),
@@ -640,7 +640,7 @@ export const UpdateDocumentBody = zod.object({
 
 export const UpdateDocumentResponse = zod.object({
   "id": zod.string(),
-  "groupId": zod.string(),
+  "groupId": zod.string().nullable(),
   "title": zod.string(),
   "section": zod.union([zod.literal('shareholders'),zod.literal('directors'),zod.literal('governing'),zod.literal('logging'),zod.literal('photo_archive'),zod.literal(null)]).nullable(),
   "year": zod.number().int().nullable(),
@@ -668,7 +668,7 @@ export const ReplaceDocumentBody = zod.object({
 
 export const ReplaceDocumentResponse = zod.object({
   "id": zod.string(),
-  "groupId": zod.string(),
+  "groupId": zod.string().nullable(),
   "title": zod.string(),
   "section": zod.union([zod.literal('shareholders'),zod.literal('directors'),zod.literal('governing'),zod.literal('logging'),zod.literal('photo_archive'),zod.literal(null)]).nullable(),
   "year": zod.number().int().nullable(),

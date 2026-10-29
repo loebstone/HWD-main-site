@@ -118,7 +118,7 @@ export default function AdminDocumentsPage() {
                 <div className="min-w-0 flex-1">
                   <a href={openUrl(d.id)} target="_blank" rel="noopener noreferrer" className="font-display text-lg hover:text-primary break-words" data-testid={`link-admin-open-${d.id}`}>{d.title}</a>
                   <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-sm text-muted-foreground">
-                    <span className="text-foreground/80" data-testid={`text-document-group-${d.id}`}>{groupName.get(d.groupId) ?? (d.retiredAt ? "Retired group" : "Unknown group")}</span>
+                    <span className={d.groupId ? "text-foreground/80" : "font-semibold text-destructive"} data-testid={`text-document-group-${d.id}`}>{d.groupId ? (groupName.get(d.groupId) ?? "Retired group") : "Needs a group"}</span>
                     {d.year != null && <span>{d.year}</span>}
                     <span>{d.type === "pdf" ? "PDF" : "Link"}</span>
                     <span>Order {d.sortOrder}</span>

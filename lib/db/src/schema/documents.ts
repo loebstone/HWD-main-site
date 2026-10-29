@@ -5,7 +5,7 @@ import { documentGroups } from "./document-groups";
 export const documents = pgTable("site_documents", {
   id: uuid("id").primaryKey().defaultRandom(),
   legacySheetId: text("legacy_sheet_id").unique(),
-  // Nullable during additive schema push; startup migration enforces live-group assignment.
+  // Permanently nullable for populated-table schema application and unassigned recovery.
   groupId: uuid("group_id").references(() => documentGroups.id),
   title: text("title").notNull(),
   section: text("section", { enum: ["shareholders", "directors", "governing", "logging", "photo_archive"] }),

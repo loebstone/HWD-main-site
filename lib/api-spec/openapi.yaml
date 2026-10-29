@@ -759,7 +759,7 @@ components:
       required: [id, title, groupId, section, year, type, externalUrl, sortOrder, tags, note, uploadedBy, uploadedByName, uploadedAt, retiredAt, replaces]
       properties:
         id: { type: string }
-        groupId: { type: string }
+        groupId: { type: ["string", "null"] }
         title: { type: string }
         section: { $ref: "#/components/schemas/LegacySection" }
         year: { type: ["integer", "null"] }
