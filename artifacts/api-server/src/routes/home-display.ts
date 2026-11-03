@@ -9,8 +9,8 @@ import { checkFamilyTime } from "../lib/family-time";
 export function familyTimeCheckRoutes(s: Services) {
   const router = Router();
   router.use(requireAdmin);
-  router.get("/check", async (req, res) => {
-    res.json(await checkFamilyTime(s, req.siteSession!.email, req.siteIdentity!.personId));
+  router.get("/check", async (_req, res) => {
+    res.json(await checkFamilyTime(s));
   });
   return router;
 }

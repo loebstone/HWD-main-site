@@ -34,7 +34,6 @@ export * from './familySlot';
 export * from './familyTime';
 export * from './familyTimeCheck';
 export * from './familyTimeCheckReason';
-export * from './familyTimeYourFamily';
 export * from './fileInput';
 export * from './getRosterEntryParams';
 export * from './grant';

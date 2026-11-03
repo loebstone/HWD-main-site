@@ -21,7 +21,6 @@ export const schedulerRotationSchema = z.object({
     displayColor: z.string().max(80).nullable().transform(value => value ?? ""),
     startDate: date, endDate: date, isManualOverride: z.boolean(),
   }).refine(slot => slot.startDate < slot.endDate)).max(100),
-  yourFamily: family.nullable(),
 });
 type Rotation = z.infer<typeof schedulerRotationSchema>;
 type Reason = "ok" | "unreachable" | "401" | "other status" | "empty slots" | "setting missing" | "invalid setting" | "invalid response";
@@ -32,7 +31,7 @@ const outages = new WeakMap<Services, Set<string>>();
 const SUCCESS_TTL = 3_600_000;
 const FAILURE_TTL = 300_000;
 
-async function fetchRotation(s: Services, year: number, email: string, personId: string): Promise<Outcome> {
+async function fetchRotation(s: Services, year: number): Promise<Outcome> {
   const failed = (reason: Reason, status?: number): Outcome => ({ year, reason, value: null, status });
   if (!process.env.SCHEDULER_BASE_URL?.trim() || !process.env.SITE_SERVICE_KEY?.trim()) return failed("setting missing");
   let url: URL;
@@ -44,8 +43,6 @@ async function fetchRotation(s: Services, year: number, email: string, personId:
     }
     url = new URL("/api/service/rotation", base);
     url.searchParams.set("year", String(year));
-    url.searchParams.set("email", email);
-    url.searchParams.set("personId", personId);
   } catch { return failed("invalid setting"); }
   let response: Response;
   try {
@@ -75,17 +72,17 @@ function recordOutcome(s: Services, outageKey: string, outcome: Outcome) {
     "Scheduler rotation unavailable for requested year");
 }
 
-async function rotationFor(s: Services, year: number, email: string, personId: string, fresh: boolean): Promise<Outcome> {
+async function rotationFor(s: Services, year: number, fresh: boolean): Promise<Outcome> {
   const base = process.env.SCHEDULER_BASE_URL?.trim().replace(/\/$/, "") ?? "";
   const outageKey = createHash("sha256").update(JSON.stringify([base, year])).digest("hex");
   const fetchAndRecord = async () => {
-    const value = await fetchRotation(s, year, email, personId);
+    const value = await fetchRotation(s, year);
     recordOutcome(s, outageKey, value);
     return value;
   };
   // The diagnostic never reads or overwrites Home's cached result.
   if (fresh) return fetchAndRecord();
-  const key = createHash("sha256").update(JSON.stringify([base, year, personId, email])).digest("hex");
+  const key = outageKey;
   let cache = caches.get(s);
   if (!cache) { cache = new Map(); caches.set(s, cache); }
   const hit = cache.get(key);
@@ -104,28 +101,28 @@ async function rotationFor(s: Services, year: number, email: string, personId: s
   })();
   return entry.pending;
 }
-async function season(s: Services, email: string, personId: string, fresh: boolean) {
+async function season(s: Services, fresh: boolean) {
   const now = s.now(), today = now.toISOString().slice(0, 10);
-  let result = await rotationFor(s, now.getUTCFullYear(), email, personId, fresh);
+  let result = await rotationFor(s, now.getUTCFullYear(), fresh);
   const value = result.value;
   // An empty current season gets exactly one next-year attempt; transport,
   // authorization and validation failures never become guessed future seasons.
   if (!value) return result.reason === "empty slots" ?
-    rotationFor(s, now.getUTCFullYear() + 1, email, personId, fresh) : result;
+    rotationFor(s, now.getUTCFullYear() + 1, fresh) : result;
   // End dates are exclusive: on that date the season is no longer current.
   if (today >= value.slots.reduce((latest, slot) => slot.endDate > latest ? slot.endDate : latest, "")) {
-    result = await rotationFor(s, now.getUTCFullYear() + 1, email, personId, fresh);
+    result = await rotationFor(s, now.getUTCFullYear() + 1, fresh);
   }
   return result;
 }
-export async function checkFamilyTime(s: Services, email: string, personId: string) {
-  const result = await season(s, email, personId, true);
+export async function checkFamilyTime(s: Services) {
+  const result = await season(s, true);
   return { ok: result.reason === "ok", reason: result.reason, year: result.year, slotCount: result.value?.slots.length ?? 0 };
 }
-export async function getFamilyTime(s: Services, email: string, personId: string, schedulerHref: string) {
-  const { value } = await season(s, email, personId, false);
+export async function getFamilyTime(s: Services, schedulerHref: string) {
+  const { value } = await season(s, false);
   if (!value) return null;
   return { year: value.year, slots: [...value.slots].sort((a, b) =>
     a.slotNumber - b.slotNumber || a.segmentIndex - b.segmentIndex || a.startDate.localeCompare(b.startDate)),
-    yourFamily: value.yourFamily, schedulerHref };
+    schedulerHref };
 }

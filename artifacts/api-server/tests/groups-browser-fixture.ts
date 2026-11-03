@@ -75,7 +75,7 @@ const services: Partial<Services> = {
   db: fixtureDb, roster: async email => ({ allowed: true, personId: `synthetic-group-browser-${email.split("@")[0]}`, displayName: "Synthetic Person", goes_by: null }),
   schedulerFetch: async input => {
     const year = Number(new URL(String(input)).searchParams.get("year"));
-    return new Response(JSON.stringify({ year, yourFamily: { familyGroupId: "one", familyName: "Family One" },
+    return new Response(JSON.stringify({ year,
       slots: ["One", "Two", "Three", "Four"].map((name, index) => ({
         slotNumber: index + 1, segmentIndex: 0, familyGroupId: name.toLowerCase(), familyName: `Family ${name}`,
         displayColor: ["#244b39", "#946331", "#35678b", "#854963"][index], startDate: `${year}-0${index + 5}-01`,

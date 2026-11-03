@@ -6,12 +6,9 @@
  * OpenAPI spec version: 1.0.0
  */
 import type { FamilySlot } from './familySlot';
-import type { FamilyTimeYourFamily } from './familyTimeYourFamily';
 
 export interface FamilyTime {
   year: number;
   slots: FamilySlot[];
-  /** @nullable */
-  yourFamily: FamilyTimeYourFamily;
   schedulerHref: string;
 }

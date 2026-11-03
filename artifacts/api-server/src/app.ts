@@ -105,8 +105,7 @@ export function createApp(services: Partial<Services> = {}): Express {
         (tool.id === "captable" && req.siteIdentity!.apps?.includes("cap-table"))) cards.push(tool);
     }
     if (dues.seasonOpen) cards.push({ id: "dues", label: "Pay your dues", href: "/dues" });
-    const familyTime = await getFamilyTime(s, req.siteSession!.email, req.siteIdentity!.personId,
-      menu.items.find(item => item.id === "scheduler")!.href);
+    const familyTime = await getFamilyTime(s, menu.items.find(item => item.id === "scheduler")!.href);
     res.json({ documentCount: count?.value ?? 0, recentDocuments: recent.map(publicDocument),
       notice, reminders: reminders.slice(0, 5), apps, featuredGroups,
       latestMinutes: minutes[0] ? publicDocument(minutes[0]) : null,

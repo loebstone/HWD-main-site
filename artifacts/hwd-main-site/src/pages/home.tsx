@@ -20,7 +20,6 @@ function CardLink({ card, i }: { card: HomeCard; i: number }) {
 
 function FamilyTimeBlock({ ft }: { ft: FamilyTime }) {
   const rows = familyRows(ft);
-  const mine = ft.yourFamily ? rows.find((r) => r.familyGroupId === ft.yourFamily?.familyGroupId) : undefined;
   const local = localPath(ft.schedulerHref);
   const linkCls = "inline-flex items-center gap-1 text-sm text-primary underline underline-offset-4";
   return (
@@ -31,15 +30,11 @@ function FamilyTimeBlock({ ft }: { ft: FamilyTime }) {
           ? <Link href={local} className={linkCls} data-testid="link-scheduler">Scheduler <ArrowRight className="h-3.5 w-3.5" /></Link>
           : <a href={ft.schedulerHref} className={linkCls} data-testid="link-scheduler">Scheduler <ArrowRight className="h-3.5 w-3.5" /></a>)}
       </div>
-      {mine && <div className="mt-3 rounded-lg px-4 py-3 bg-background/60 border-l-4" style={{ borderLeftColor: safeColor(mine.displayColor) }} data-testid="text-your-family-time">
-        <p className="font-display text-xl" style={{ color: safeColor(mine.displayColor) }}>Your family's time: {mine.segments.map((s) => formatRange(s)).join(" and ")}</p>
-        <p className="mt-1 text-sm text-muted-foreground">{mine.familyName}</p>
-      </div>}
-      {!!rows.length && <ul className="mt-3 grid sm:grid-cols-2 gap-x-6 gap-y-2">
-        {rows.map((r) => <li key={r.familyGroupId} className="flex items-start gap-2.5 min-w-0" data-testid={`row-family-${r.familyGroupId}`}>
-          <span className="mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: safeColor(r.displayColor) }} aria-hidden />
-          <span className="min-w-0"><span className="font-medium break-words">{r.familyName}</span>{" "}
-            <span className="text-muted-foreground">{r.segments.map((s) => formatRange(s)).join(", ")}</span></span>
+      {!!rows.length && <ul className="mt-3 grid gap-x-5 gap-y-1.5 xl:grid-cols-4 text-sm leading-6">
+        {rows.map((r) => <li key={r.familyGroupId} className="flex items-center gap-2 min-w-0" data-testid={`row-family-${r.familyGroupId}`}>
+          <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: safeColor(r.displayColor) }} aria-hidden />
+          <span className="min-w-0"><span className="font-medium">{r.familyName}</span>{" "}
+            <span className="text-muted-foreground whitespace-nowrap">{r.segments.map((s) => formatRange(s)).join(", ")}</span></span>
         </li>)}
       </ul>}
     </div>

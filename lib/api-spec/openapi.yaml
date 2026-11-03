@@ -921,16 +921,10 @@ components:
         isManualOverride: { type: boolean }
     FamilyTime:
       type: object
-      required: [year, slots, yourFamily, schedulerHref]
+      required: [year, slots, schedulerHref]
       properties:
         year: { type: integer }
         slots: { type: array, items: { $ref: "#/components/schemas/FamilySlot" } }
-        yourFamily:
-          type: [object, "null"]
-          required: [familyGroupId, familyName]
-          properties:
-            familyGroupId: { type: string }
-            familyName: { type: string }
         schedulerHref: { type: string }
     GrantInput:
       type: object

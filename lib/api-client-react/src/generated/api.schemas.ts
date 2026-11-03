@@ -431,19 +431,9 @@ export interface FamilySlot {
   isManualOverride: boolean;
 }
 
-/**
- * @nullable
- */
-export type FamilyTimeYourFamily = {
-  familyGroupId: string;
-  familyName: string;
-} | null;
-
 export interface FamilyTime {
   year: number;
   slots: FamilySlot[];
-  /** @nullable */
-  yourFamily: FamilyTimeYourFamily;
   schedulerHref: string;
 }
 

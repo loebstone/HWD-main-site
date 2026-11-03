@@ -461,10 +461,6 @@ export const GetHomeResponse = zod.object({
   "endDate": zod.coerce.date().describe('Exclusive end date'),
   "isManualOverride": zod.boolean()
 })),
-  "yourFamily": zod.object({
-  "familyGroupId": zod.string(),
-  "familyName": zod.string()
-}).nullable(),
   "schedulerHref": zod.string()
 }),zod.null()]).optional(),
   "cards": zod.array(zod.object({

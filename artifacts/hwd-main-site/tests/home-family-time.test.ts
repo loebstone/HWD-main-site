@@ -10,7 +10,7 @@ test("family dates display exclusive ends inclusively without local time shifts"
   assert.equal(formatRange({ startDate: "2027-05-01", endDate: "2027-05-02" }), "May 1");
 });
 test("families are in slot order and manual segments stay with the right family", () => {
-  const ft: FamilyTime = { year: 2027, yourFamily: null, schedulerHref: "/scheduler", slots: [
+  const ft: FamilyTime = { year: 2027, schedulerHref: "/scheduler", slots: [
     { slotNumber: 2, segmentIndex: 0, familyGroupId: "b", familyName: "B", displayColor: "#123456", startDate: "2027-06-01", endDate: "2027-07-01", isManualOverride: false },
     { slotNumber: 1, segmentIndex: 1, familyGroupId: "a", familyName: "A", displayColor: "#654321", startDate: "2027-05-10", endDate: "2027-05-20", isManualOverride: true },
     { slotNumber: 1, segmentIndex: 0, familyGroupId: "a", familyName: "A", displayColor: "#654321", startDate: "2027-05-01", endDate: "2027-05-10", isManualOverride: false },
@@ -41,6 +41,9 @@ test("Home order is hero, announcements, optional slideshow, cards; retired Home
   assert.match(source, /loading="lazy"/);
   assert.match(source, /referrerPolicy="no-referrer"/);
   assert.match(source, /allow=""/);
+  assert(!source.includes("Your family's time"));
+  assert(!source.includes("ft.yourFamily"));
+  assert.match(source, /xl:grid-cols-4 text-sm/);
   const settings = readFileSync(new URL("../src/pages/admin/admin-home.tsx", import.meta.url), "utf8");
   assert.match(settings, /placeholder="https:\/\/photos\.smugmug\.com\/frame\/\.\.\."/);
   assert(!settings.includes("docs.google.com"));
