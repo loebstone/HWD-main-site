@@ -12,6 +12,7 @@ import { createSession, hashToken } from "../src/lib/auth";
 import { DAY } from "../src/lib/config";
 import { logger } from "../src/lib/logger";
 import { sendContactMail, type ContactMail } from "../src/lib/email";
+import { DEFAULT_CONTACT_TEXT } from "../src/routes/contact";
 import { toolAllowed, isSuiteHref, logoSvg } from "../src/lib/suite-menu";
 import { installDatabaseProtections } from "../src/install-security";
 import type { Services } from "../src/lib/services";
@@ -194,20 +195,49 @@ test("Suite menu and Contact: isolated development-only records", async t => {
     await t.test("Contact unset is unavailable, recipient private; settings restricted to admin and validated", async () => {
       await request(app).get("/api/contact").expect(401);
       await request(app).post("/api/contact").send({ subject: "x", message: "x" }).expect(401);
-      await request(app).get("/api/contact").set("Cookie", member.cookie).expect(200, { configured: false });
+      await request(app).get("/api/contact").set("Cookie", member.cookie).expect(200, { configured: false, textAboveForm: DEFAULT_CONTACT_TEXT });
+      await request(app).get("/api/admin/contact").set("Cookie", admin.cookie)
+        .expect(200, { recipient: "", textAboveForm: DEFAULT_CONTACT_TEXT });
+      assert.equal(DEFAULT_CONTACT_TEXT, "Questions, requests, corrections — send them here and the right person will get back to you.");
       await request(app).post("/api/contact").set("Cookie", member.cookie)
         .send({ subject: "Synthetic hello", message: "Synthetic text" }).expect(409, { error: "Contact isn't set up yet" });
+      // Existing deployments have recipient-only JSON; no schema/data migration is needed.
+      await db.insert(schema.siteSettings).values({ key: "contact", value: { recipient: "contact@example.invalid" },
+        updatedBy: admin.answer.personId, updatedAt: new Date("2026-07-01T12:00:00Z") });
+      await request(app).get("/api/contact").set("Cookie", member.cookie)
+        .expect(200, { configured: true, textAboveForm: DEFAULT_CONTACT_TEXT });
       for (const person of [member, editor]) {
         await request(app).get("/api/admin/contact").set("Cookie", person.cookie).expect(403);
         await request(app).put("/api/admin/contact").set("Cookie", person.cookie).send({ recipient: "nobody@example.invalid" }).expect(403);
       }
       await request(app).put("/api/admin/contact").set("Cookie", admin.cookie).send({ recipient: "invalid" }).expect(400);
       await request(app).put("/api/admin/contact").set("Cookie", admin.cookie)
-        .send({ recipient: "contact@example.invalid" }).expect(200, { recipient: "contact@example.invalid" });
-      await request(app).get("/api/contact").set("Cookie", member.cookie).expect(200, { configured: true });
+        .send({ recipient: "contact@example.invalid" }).expect(200, { recipient: "contact@example.invalid", textAboveForm: DEFAULT_CONTACT_TEXT });
+      await request(app).get("/api/contact").set("Cookie", member.cookie).expect(200, { configured: true, textAboveForm: DEFAULT_CONTACT_TEXT });
       const [entry] = await db.select().from(auditLog).where(eq(auditLog.action, "contact-settings-edit"));
       assert.equal(entry!.actorPersonId, admin.answer.personId);
       assert(!entry!.description.includes("@"));
+    });
+    await t.test("Contact intro edits persist, are admin-only and audited; limit 300; omitted edits preserve text", async () => {
+      const textAboveForm = "Please send your Farm questions here. <b>Plain text only.</b>";
+      for (const person of [member, editor]) {
+        await request(app).put("/api/admin/contact").set("Cookie", person.cookie)
+          .send({ recipient: "contact@example.invalid", textAboveForm }).expect(403);
+      }
+      await request(app).put("/api/admin/contact").set("Cookie", admin.cookie)
+        .send({ recipient: "contact@example.invalid", textAboveForm: "a".repeat(301) }).expect(400);
+      await request(app).put("/api/admin/contact").set("Cookie", admin.cookie)
+        .send({ recipient: "contact@example.invalid", textAboveForm: "a".repeat(300) }).expect(200);
+      await request(app).put("/api/admin/contact").set("Cookie", admin.cookie)
+        .send({ recipient: "contact@example.invalid", textAboveForm }).expect(200);
+      await request(app).get("/api/contact").set("Cookie", member.cookie).expect(200, { configured: true, textAboveForm });
+      await request(app).get("/api/admin/contact").set("Cookie", admin.cookie)
+        .expect(200, { recipient: "contact@example.invalid", textAboveForm });
+      await request(app).put("/api/admin/contact").set("Cookie", admin.cookie)
+        .send({ recipient: "contact@example.invalid" }).expect(200, { recipient: "contact@example.invalid", textAboveForm });
+      const entries = await db.select().from(auditLog).where(eq(auditLog.action, "contact-settings-edit"));
+      assert.equal(entries.length, 4); // Initial setting, max-length edit, text edit, recipient-only edit.
+      assert(entries.every(entry => entry.actorPersonId === admin.answer.personId && !entry.description.includes(textAboveForm)));
     });
     await t.test("Contact validates lengths/headers and refuses cross-site sends", async () => {
       for (const data of [{ subject: "a".repeat(201), message: "ok" }, { subject: "ok", message: "a".repeat(5001) },
@@ -256,7 +286,9 @@ test("Suite menu and Contact: isolated development-only records", async t => {
         .send({ subject: "Synthetic next day", message: "Synthetic body" }).expect(200);
       assert.equal(delivered.length, 21);
       await request(app).put("/api/admin/contact").set("Cookie", admin.cookie).send({ recipient: "" }).expect(200);
-      await request(app).get("/api/contact").set("Cookie", member.cookie).expect(200, { configured: false });
+      const disabled = await request(app).get("/api/contact").set("Cookie", member.cookie).expect(200);
+      assert.equal(disabled.body.configured, false);
+      assert.equal(typeof disabled.body.textAboveForm, "string");
       await request(app).post("/api/contact").set("Cookie", fresh.cookie)
         .send({ subject: "Synthetic disabled", message: "Synthetic body" }).expect(409);
     });

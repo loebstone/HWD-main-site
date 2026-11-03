@@ -12,4 +12,9 @@ export interface ContactSettings {
      * @maxLength 320
      */
   recipient: string;
+  /**
+     * Plain introductory text; omitted updates preserve the current value
+     * @maxLength 300
+     */
+  textAboveForm?: string;
 }

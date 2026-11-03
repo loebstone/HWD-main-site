@@ -761,11 +761,13 @@ components:
       required: [recipient]
       properties:
         recipient: { type: string, maxLength: 320, description: Empty string disables Contact }
+        textAboveForm: { type: string, maxLength: 300, description: Plain introductory text; omitted updates preserve the current value }
     ContactStatus:
       type: object
-      required: [configured]
+      required: [configured, textAboveForm]
       properties:
         configured: { type: boolean }
+        textAboveForm: { type: string, maxLength: 300 }
     Section:
       type: string
       enum: [shareholders, directors, governing, logging, photo_archive]

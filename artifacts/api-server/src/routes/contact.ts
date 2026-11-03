@@ -7,18 +7,28 @@ import { requireAdmin, visitorAddress } from "../middlewares/security";
 import { audit } from "../lib/audit";
 import type { Services } from "../lib/services";
 
-const contactSettings = z.object({ recipient: z.union([z.literal(""), z.string().trim().email().max(320)]) });
+export const DEFAULT_CONTACT_TEXT = "Questions, requests, corrections — send them here and the right person will get back to you.";
+const contactSettings = z.object({
+  recipient: z.union([z.literal(""), z.string().trim().email().max(320)]),
+  textAboveForm: z.string().max(300).default(DEFAULT_CONTACT_TEXT),
+});
 const contactInput = z.object({
   subject: z.string().trim().min(1).max(200).refine(value => !/[\r\n\u0000]/.test(value), "Use a single-line subject"),
   message: z.string().trim().min(1).max(5000),
 });
-async function recipient(s: Services) {
+async function settings(s: Services) {
   const [row] = await s.db.select().from(siteSettings).where(eq(siteSettings.key, "contact"));
-  return row ? contactSettings.parse(row.value).recipient : "";
+  return contactSettings.parse(row ? row.value : { recipient: "" });
+}
+async function recipient(s: Services) {
+  return (await settings(s)).recipient;
 }
 export function contactRoutes(s: Services) {
   const router = Router();
-  router.get("/", async (_req, res) => { res.json({ configured: Boolean(await recipient(s)) }); });
+  router.get("/", async (_req, res) => {
+    const value = await settings(s);
+    res.json({ configured: Boolean(value.recipient), textAboveForm: value.textAboveForm });
+  });
   router.post("/", async (req, res): Promise<void> => {
     const parsed = contactInput.safeParse(SendContactBody.parse(req.body));
     if (!parsed.success) { res.status(400).json({ error: parsed.error.issues.map(i => i.message).join("; ") }); return; }
@@ -54,20 +64,23 @@ export function contactRoutes(s: Services) {
 export function adminContactRoutes(s: Services) {
   const router = Router();
   router.use(requireAdmin);
-  router.get("/", async (_req, res) => { res.json({ recipient: await recipient(s) }); });
+  router.get("/", async (_req, res) => { res.json(await settings(s)); });
   router.put("/", async (req, res): Promise<void> => {
     const input = UpdateContactSettingsBody.parse(req.body);
-    const parsed = contactSettings.safeParse({ recipient: input.recipient.trim() });
+    const parsed = contactSettings.safeParse({ recipient: input.recipient.trim(), textAboveForm: input.textAboveForm });
     if (!parsed.success) { res.status(400).json({ error: "Enter a valid recipient email, or leave it blank to disable Contact." }); return; }
-    await s.db.transaction(async tx => {
+    const saved = await s.db.transaction(async tx => {
       await tx.execute(sql`SELECT pg_advisory_xact_lock(74202003)`);
-      await tx.insert(siteSettings).values({ key: "contact", value: parsed.data,
+      const current = await settings({ ...s, db: tx as unknown as Services["db"] });
+      const value = { ...parsed.data, textAboveForm: input.textAboveForm ?? current.textAboveForm };
+      await tx.insert(siteSettings).values({ key: "contact", value,
         updatedBy: req.siteIdentity!.personId, updatedAt: s.now() })
-        .onConflictDoUpdate({ target: siteSettings.key, set: { value: parsed.data,
+        .onConflictDoUpdate({ target: siteSettings.key, set: { value,
           updatedBy: req.siteIdentity!.personId, updatedAt: s.now() } });
-      await audit(tx, req.siteIdentity!, "contact-settings-edit", "contact", "Updated Contact recipient setting", visitorAddress(req));
+      await audit(tx, req.siteIdentity!, "contact-settings-edit", "contact", "Updated Contact settings", visitorAddress(req));
+      return value;
     });
-    res.json(parsed.data);
+    res.json(saved);
   });
   return router;
 }

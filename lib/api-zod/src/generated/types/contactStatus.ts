@@ -8,4 +8,6 @@
 
 export interface ContactStatus {
   configured: boolean;
+  /** @maxLength 300 */
+  textAboveForm: string;
 }

@@ -12,6 +12,7 @@ import { ErrorState, ListSkeleton } from "@/components/states";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { errorMessage } from "@/lib/session";
 import { DEFAULT_ITEMS, DEFAULT_TOOLS, sortItems } from "@/lib/suite-menu";
 
@@ -92,15 +93,17 @@ export function AdminContactPage() {
   const query = useGetAdminContact({ query: { queryKey: getGetAdminContactQueryKey(), staleTime: 0, refetchOnMount: "always" } });
   const update = useUpdateContactSettings();
   const [recipient, setRecipient] = useState("");
+  const [textAboveForm, setTextAboveForm] = useState("");
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const initialized = useRef(false);
-  useEffect(() => { if (query.data && !initialized.current) { initialized.current = true; setRecipient(query.data.recipient); } }, [query.data]);
+  useEffect(() => { if (query.data && !initialized.current) { initialized.current = true; setRecipient(query.data.recipient); setTextAboveForm(query.data.textAboveForm ?? ""); } }, [query.data]);
 
   async function save(value: string) {
     setMsg(null);
     try {
-      const res = await update.mutateAsync({ data: { recipient: value.trim() } });
+      const res = await update.mutateAsync({ data: { recipient: value.trim(), textAboveForm } });
       setRecipient(res.recipient);
+      setTextAboveForm(res.textAboveForm ?? "");
       client.setQueryData(getGetAdminContactQueryKey(), res);
       void client.invalidateQueries({ queryKey: getGetAdminContactQueryKey() });
       void client.invalidateQueries({ queryKey: getGetContactStatusQueryKey() });
@@ -116,6 +119,9 @@ export function AdminContactPage() {
         <div className="space-y-1.5"><Label htmlFor="contact-recipient">Contact messages go to:</Label>
           <Input id="contact-recipient" type="email" maxLength={320} value={recipient} onChange={(e) => setRecipient(e.target.value)} placeholder="name@example.org" data-testid="input-contact-recipient" />
           <p className="text-sm text-muted-foreground">Leave empty to turn Contact off.</p></div>
+        <div className="space-y-1.5"><Label htmlFor="contact-text-above-form">Text above the form</Label>
+          <Textarea id="contact-text-above-form" rows={3} maxLength={300} value={textAboveForm} onChange={(e) => setTextAboveForm(e.target.value)} data-testid="input-contact-text-above-form" />
+          <p className="text-sm text-muted-foreground">{textAboveForm.length} / 300</p></div>
         <div className="flex flex-wrap gap-2">
           <Button type="submit" disabled={update.isPending} data-testid="button-save-contact-settings">{update.isPending ? "Saving…" : "Save"}</Button>
           <Button type="button" variant="outline" disabled={update.isPending} onClick={() => { setRecipient(""); void save(""); }} data-testid="button-clear-contact-settings">Clear</Button>

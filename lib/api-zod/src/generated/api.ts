@@ -230,8 +230,13 @@ export const UpdateSuiteMenuResponse = zod.object({
 })
 
 
+export const getContactStatusResponseTextAboveFormMax = 300;
+
+
+
 export const GetContactStatusResponse = zod.object({
-  "configured": zod.boolean()
+  "configured": zod.boolean(),
+  "textAboveForm": zod.string().max(getContactStatusResponseTextAboveFormMax)
 })
 
 
@@ -253,27 +258,36 @@ export const SendContactResponse = zod.object({
 
 export const getAdminContactResponseRecipientMax = 320;
 
+export const getAdminContactResponseTextAboveFormMax = 300;
+
 
 
 export const GetAdminContactResponse = zod.object({
-  "recipient": zod.string().max(getAdminContactResponseRecipientMax).describe('Empty string disables Contact')
+  "recipient": zod.string().max(getAdminContactResponseRecipientMax).describe('Empty string disables Contact'),
+  "textAboveForm": zod.string().max(getAdminContactResponseTextAboveFormMax).optional().describe('Plain introductory text; omitted updates preserve the current value')
 })
 
 
 export const updateContactSettingsBodyRecipientMax = 320;
 
+export const updateContactSettingsBodyTextAboveFormMax = 300;
+
 
 
 export const UpdateContactSettingsBody = zod.object({
-  "recipient": zod.string().max(updateContactSettingsBodyRecipientMax).describe('Empty string disables Contact')
+  "recipient": zod.string().max(updateContactSettingsBodyRecipientMax).describe('Empty string disables Contact'),
+  "textAboveForm": zod.string().max(updateContactSettingsBodyTextAboveFormMax).optional().describe('Plain introductory text; omitted updates preserve the current value')
 })
 
 export const updateContactSettingsResponseRecipientMax = 320;
 
+export const updateContactSettingsResponseTextAboveFormMax = 300;
+
 
 
 export const UpdateContactSettingsResponse = zod.object({
-  "recipient": zod.string().max(updateContactSettingsResponseRecipientMax).describe('Empty string disables Contact')
+  "recipient": zod.string().max(updateContactSettingsResponseRecipientMax).describe('Empty string disables Contact'),
+  "textAboveForm": zod.string().max(updateContactSettingsResponseTextAboveFormMax).optional().describe('Plain introductory text; omitted updates preserve the current value')
 })
 
 

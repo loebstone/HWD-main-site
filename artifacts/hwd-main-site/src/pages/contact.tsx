@@ -32,7 +32,7 @@ export default function ContactPage() {
   }
 
   return <div>
-    <PageHeader eyebrow="Get in touch" title="Contact" intro="Send a note to the people who look after the Farm." />
+    <PageHeader eyebrow="Get in touch" title="Contact" intro={status.data?.textAboveForm} />
     {status.isLoading ? <ListSkeleton rows={2} /> : status.isError ? <ErrorState onRetry={() => status.refetch()} /> :
       !status.data?.configured ? <p className="max-w-2xl rounded-xl border bg-card px-5 py-6 text-muted-foreground" data-testid="status-contact-unconfigured">Contact isn't set up yet</p> :
         <section className="max-w-2xl rounded-xl border bg-card p-5 md:p-7">
