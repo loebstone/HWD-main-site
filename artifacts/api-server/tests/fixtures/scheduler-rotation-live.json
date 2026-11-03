@@ -1,0 +1,24 @@
+{
+  "2026": {
+    "year": 2026,
+    "generatedFrom": "stored",
+    "slots": [
+      {"slotNumber":1,"segmentIndex":0,"familyGroupId":1,"familyName":"Church Davis","displayColor":"#9B1C1C","startDate":"2026-06-28","endDate":"2026-07-12","isManualOverride":true},
+      {"slotNumber":2,"segmentIndex":0,"familyGroupId":2,"familyName":"Clayson","displayColor":"#d97706","startDate":"2026-07-12","endDate":"2026-07-26","isManualOverride":true},
+      {"slotNumber":3,"segmentIndex":0,"familyGroupId":3,"familyName":"Esmond","displayColor":"#7c3aed","startDate":"2026-07-26","endDate":"2026-08-09","isManualOverride":true},
+      {"slotNumber":4,"segmentIndex":0,"familyGroupId":4,"familyName":"Phil Davis","displayColor":"#166534","startDate":"2026-08-09","endDate":"2026-08-23","isManualOverride":true}
+    ],
+    "yourFamily": null
+  },
+  "2027": {
+    "year": 2027,
+    "generatedFrom": "stored",
+    "slots": [
+      {"slotNumber":1,"segmentIndex":0,"familyGroupId":4,"familyName":"Phil Davis","displayColor":"#166534","startDate":"2027-06-27","endDate":"2027-07-11","isManualOverride":false},
+      {"slotNumber":2,"segmentIndex":0,"familyGroupId":1,"familyName":"Church Davis","displayColor":"#9B1C1C","startDate":"2027-07-11","endDate":"2027-07-25","isManualOverride":false},
+      {"slotNumber":3,"segmentIndex":0,"familyGroupId":3,"familyName":"Esmond","displayColor":"#7c3aed","startDate":"2027-07-25","endDate":"2027-08-08","isManualOverride":false},
+      {"slotNumber":4,"segmentIndex":0,"familyGroupId":2,"familyName":"Clayson","displayColor":"#d97706","startDate":"2027-08-08","endDate":"2027-08-22","isManualOverride":false}
+    ],
+    "yourFamily": null
+  }
+}

@@ -19,6 +19,7 @@ test("families are in slot order and manual segments stay with the right family"
   assert.equal(familyRows(ft)[0].segments[0].startDate, "2027-05-01");
   assert.equal(safeColor("#123456"), "#123456");
   assert.equal(safeColor("url(https://evil.example)"), "hsl(var(--primary))");
+  assert.equal(safeColor(""), "hsl(var(--primary))");
 });
 test("member view has no Tools and clears role-scoped query cache on both transitions", () => {
   assert.deepEqual(visibleSuiteTools({ role: "member", apps: ["site", "scheduler", "roster"], viewAsMember: true },
@@ -47,4 +48,5 @@ test("Home order is hero, announcements, optional slideshow, cards; retired Home
   assert.match(settings, /familyTime\.refetch\(\)/);
   assert.match(settings, /Check family time/);
   for (const field of ["ok", "reason", "year", "slotCount"]) assert(settings.includes(`familyTime.data.${field}`));
+  assert.match(settings, /`OK · Year \$\{familyTime\.data\.year\} · \$\{familyTime\.data\.slotCount\} slots`/);
 });

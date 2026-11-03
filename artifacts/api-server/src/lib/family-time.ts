@@ -4,21 +4,26 @@ import { required } from "./config";
 import { logger } from "./logger";
 import type { Services } from "./services";
 
-const date = z.string().regex(/^\d{4}-\d{2}-\d{2}$/).refine(value => {
-  const parsed = new Date(`${value}T00:00:00Z`);
-  return !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value;
-});
-const family = z.object({ familyGroupId: z.string().min(1).max(150), familyName: z.string().min(1).max(200) });
-const rotation = z.object({
+// Slots represent calendar days, not instants. Keep the ISO date prefix even
+// when an upstream timestamp has an offset; UTC conversion could shift the day.
+const date = z.string().regex(/^\d{4}-\d{2}-\d{2}(?:T(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d{1,9})?)?(?:Z|[+-](?:[01]\d|2[0-3]):[0-5]\d)?)?$/).refine(value => {
+  const day = value.slice(0, 10);
+  const parsed = new Date(`${day}T00:00:00Z`);
+  return !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === day &&
+    (value.length === 10 || !Number.isNaN(Date.parse(value)));
+}).transform(value => value.slice(0, 10));
+const familyId = z.union([z.string().min(1).max(150), z.number().int().safe()]).transform(String);
+const family = z.object({ familyGroupId: familyId, familyName: z.string().min(1).max(200) });
+export const schedulerRotationSchema = z.object({
   year: z.number().int().min(1900).max(9999),
   slots: z.array(family.extend({
     slotNumber: z.number().int(), segmentIndex: z.number().int(),
-    displayColor: z.string().max(80),
+    displayColor: z.string().max(80).nullable().transform(value => value ?? ""),
     startDate: date, endDate: date, isManualOverride: z.boolean(),
   }).refine(slot => slot.startDate < slot.endDate)).max(100),
   yourFamily: family.nullable(),
 });
-type Rotation = z.infer<typeof rotation>;
+type Rotation = z.infer<typeof schedulerRotationSchema>;
 type Reason = "ok" | "unreachable" | "401" | "other status" | "empty slots" | "setting missing" | "invalid setting" | "invalid response";
 type Outcome = { year: number; reason: Reason; value: Rotation | null; status?: number };
 type Cached = { expiresAt: number; value?: Outcome; pending?: Promise<Outcome> };
@@ -50,7 +55,7 @@ async function fetchRotation(s: Services, year: number, email: string, personId:
   } catch { return failed("unreachable"); }
   if (!response.ok) return failed(response.status === 401 ? "401" : "other status", response.status);
   try {
-    const payload = rotation.parse(await response.json());
+    const payload = schedulerRotationSchema.parse(await response.json());
     if (payload.year !== year) return failed("invalid response");
     if (!payload.slots.length) return failed("empty slots");
     return { year, reason: "ok", value: payload };
@@ -67,7 +72,7 @@ function recordOutcome(s: Services, outageKey: string, outcome: Outcome) {
   // One line per origin/year outage, shared across members and retries. Never log
   // URLs, email, person ID, bodies, credentials or raw error messages.
   logger.warn({ reason: outcome.reason, year: outcome.year, ...(outcome.status ? { status: outcome.status } : {}) },
-    "Scheduler rotation unavailable; family-time bar omitted");
+    "Scheduler rotation unavailable for requested year");
 }
 
 async function rotationFor(s: Services, year: number, email: string, personId: string, fresh: boolean): Promise<Outcome> {
@@ -103,7 +108,10 @@ async function season(s: Services, email: string, personId: string, fresh: boole
   const now = s.now(), today = now.toISOString().slice(0, 10);
   let result = await rotationFor(s, now.getUTCFullYear(), email, personId, fresh);
   const value = result.value;
-  if (!value) return result;
+  // An empty current season gets exactly one next-year attempt; transport,
+  // authorization and validation failures never become guessed future seasons.
+  if (!value) return result.reason === "empty slots" ?
+    rotationFor(s, now.getUTCFullYear() + 1, email, personId, fresh) : result;
   // End dates are exclusive: on that date the season is no longer current.
   if (today >= value.slots.reduce((latest, slot) => slot.endDate > latest ? slot.endDate : latest, "")) {
     result = await rotationFor(s, now.getUTCFullYear() + 1, email, personId, fresh);

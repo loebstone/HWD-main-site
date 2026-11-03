@@ -75,7 +75,8 @@ export function AdminHomePage() {
         </Button>
         {familyTime.isError ? <p role="alert" className="text-sm text-destructive">{errorMessage(familyTime.error, "Couldn't check family time. Please try again.")}</p> :
           familyTime.data && !familyTime.isFetching && <p role="status" className="text-sm break-words" data-testid="family-time-check-result">
-            {familyTime.data.ok ? "Connected" : "Unavailable"} · {familyTime.data.reason} · Year {familyTime.data.year} · {familyTime.data.slotCount} slots
+            {familyTime.data.ok ? `OK · Year ${familyTime.data.year} · ${familyTime.data.slotCount} slots` :
+              `Unavailable · ${familyTime.data.reason} · Year ${familyTime.data.year} · ${familyTime.data.slotCount} slots`}
           </p>}
       </section>
     </div>

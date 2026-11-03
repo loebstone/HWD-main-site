@@ -69,26 +69,31 @@ test("Family time failure/empty caches expire at five minutes; recovered nonempt
   process.env.SITE_SERVICE_KEY = "synthetic-home-key";
   for (const failure of ["empty", "unreachable", "401", "503"]) {
     let elapsed = 0, calls = 0;
-    const s = { now: () => new Date(Date.parse("2026-06-01T12:00:00Z") + elapsed), schedulerFetch: async () => {
+    const byYear = new Map<number, number>();
+    const s = { now: () => new Date(Date.parse("2026-06-01T12:00:00Z") + elapsed), schedulerFetch: async input => {
       calls++;
-      if (calls > 1) return new Response(JSON.stringify(rotation(2026)));
+      const year = Number(new URL(String(input)).searchParams.get("year"));
+      const attempts = (byYear.get(year) ?? 0) + 1;
+      byYear.set(year, attempts);
+      if (attempts > 1) return new Response(JSON.stringify(rotation(year)));
       if (failure === "unreachable") throw new Error("must-not-log-this-email@example.invalid");
-      return failure === "empty" ? new Response(JSON.stringify({ ...rotation(2026), slots: [] })) :
+      return failure === "empty" ? new Response(JSON.stringify({ ...rotation(year), slots: [] })) :
         new Response("", { status: Number(failure) });
     } } as Services;
     assert.equal(await getFamilyTime(s, "nobody@example.invalid", "synthetic", "/scheduler"), null, failure);
     elapsed = 299_999;
     assert.equal(await getFamilyTime(s, "nobody@example.invalid", "synthetic", "/scheduler"), null);
-    assert.equal(calls, 1);
+    const initialCalls = failure === "empty" ? 2 : 1;
+    assert.equal(calls, initialCalls);
     elapsed = 300_000;
     assert.equal((await getFamilyTime(s, "nobody@example.invalid", "synthetic", "/scheduler"))?.slots.length, 4);
-    assert.equal(calls, 2);
+    assert.equal(calls, initialCalls + 1);
     elapsed += 3_599_999;
     await getFamilyTime(s, "nobody@example.invalid", "synthetic", "/scheduler");
-    assert.equal(calls, 2);
+    assert.equal(calls, initialCalls + 1);
     elapsed++;
     await getFamilyTime(s, "nobody@example.invalid", "synthetic", "/scheduler");
-    assert.equal(calls, 3);
+    assert.equal(calls, initialCalls + 2);
   }
 });
 
@@ -124,12 +129,13 @@ test("Family time logs reason/year once per outage, resets on recovery, and fres
     for (const [reason, fetcher] of [
       ["401", async () => new Response("", { status: 401 })],
       ["other status", async () => new Response("", { status: 503 })],
-      ["empty slots", async () => new Response(JSON.stringify({ ...rotation(2026), slots: [] }))],
+      ["empty slots", async (input: RequestInfo | URL) => new Response(JSON.stringify({
+        ...rotation(Number(new URL(String(input)).searchParams.get("year"))), slots: [] }))],
       ["invalid response", async () => new Response("{}")],
     ] as const) {
       const result = await checkFamilyTime({ now: s.now, schedulerFetch: fetcher } as Services, "nobody@example.invalid", "synthetic");
       assert.equal(result.reason, reason);
-      assert.equal((warnings.at(-1)![0] as { year: number }).year, 2026);
+      assert.equal((warnings.at(-1)![0] as { year: number }).year, reason === "empty slots" ? 2027 : 2026);
     }
     delete process.env.SITE_SERVICE_KEY;
     const missingService = { now: s.now } as Services;
