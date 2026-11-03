@@ -24,6 +24,21 @@ export const SetViewAsMemberResponse = zod.object({
 })
 
 
+/**
+ * Admin-only live Scheduler check; bypasses the Home cache and never returns member email or credentials.
+ */
+export const checkFamilyTimeResponseSlotCountMin = 0;
+
+
+
+export const CheckFamilyTimeResponse = zod.object({
+  "ok": zod.boolean(),
+  "reason": zod.enum(['ok', 'unreachable', '401', 'other status', 'empty slots', 'setting missing', 'invalid setting', 'invalid response']),
+  "year": zod.number().int(),
+  "slotCount": zod.number().int().min(checkFamilyTimeResponseSlotCountMin)
+})
+
+
 export const getHomeDisplayResponseSlideshowEmbedUrlMax = 2048;
 
 

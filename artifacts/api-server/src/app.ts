@@ -29,7 +29,7 @@ import { getSuiteMenu, toolAllowed } from "./lib/suite-menu";
 import { getDuesSettings, getHomeDisplay } from "./lib/home-display";
 import { getFamilyTime } from "./lib/family-time";
 import { DEFAULT_GROUPS } from "./migrate-document-groups";
-import { adminDuesRoutes, duesRoutes, homeDisplayRoutes } from "./routes/home-display";
+import { adminDuesRoutes, duesRoutes, homeDisplayRoutes, familyTimeCheckRoutes } from "./routes/home-display";
 
 export function createApp(services: Partial<Services> = {}): Express {
   const s = { ...defaultServices, ...services };
@@ -73,6 +73,7 @@ export function createApp(services: Partial<Services> = {}): Express {
   app.use("/api/admin/groups", adminGroupRoutes(s));
   app.use("/api/admin/home", homeGroupSettingsRoutes(s));
   app.use("/api/admin/home-display", homeDisplayRoutes(s));
+  app.use("/api/admin/family-time", familyTimeCheckRoutes(s));
   app.use("/api/admin/dues", adminDuesRoutes(s));
   app.use("/api/dues", duesRoutes(s));
   app.use("/api/admin/grants", grantRoutes(s));

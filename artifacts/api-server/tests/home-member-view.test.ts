@@ -12,7 +12,8 @@ import { createApp } from "../src/app";
 import { hashToken, newToken } from "../src/lib/auth";
 import { DEFAULT_GROUPS, migrateDocumentGroups } from "../src/migrate-document-groups";
 import { installDatabaseProtections } from "../src/install-security";
-import { getFamilyTime } from "../src/lib/family-time";
+import { getFamilyTime, checkFamilyTime } from "../src/lib/family-time";
+import { logger } from "../src/lib/logger";
 import { homeDisplayInput } from "../src/lib/home-display";
 import type { Services } from "../src/lib/services";
 
@@ -56,6 +57,97 @@ test("Family time is private, cached per member for one hour, sorted, and moves 
   const next = await getFamilyTime(s, "nobody@example.invalid", "synthetic-person", "/scheduler");
   assert.equal(next?.year, 2027);
   assert.deepEqual(calls.slice(-2).map(url => url.searchParams.get("year")), ["2026", "2027"]);
+  const beforeCheck = calls.length;
+  assert.deepEqual(await checkFamilyTime(s, "nobody@example.invalid", "synthetic-person"),
+    { ok: true, reason: "ok", year: 2027, slotCount: 4 });
+  assert.equal(calls.length, beforeCheck + 2, "Both season requests bypass cached answers");
+});
+
+test("Family time failure/empty caches expire at five minutes; recovered nonempty answers last one hour", async () => {
+  process.env.NODE_ENV = "test";
+  process.env.SCHEDULER_BASE_URL = "https://scheduler.example.invalid";
+  process.env.SITE_SERVICE_KEY = "synthetic-home-key";
+  for (const failure of ["empty", "unreachable", "401", "503"]) {
+    let elapsed = 0, calls = 0;
+    const s = { now: () => new Date(Date.parse("2026-06-01T12:00:00Z") + elapsed), schedulerFetch: async () => {
+      calls++;
+      if (calls > 1) return new Response(JSON.stringify(rotation(2026)));
+      if (failure === "unreachable") throw new Error("must-not-log-this-email@example.invalid");
+      return failure === "empty" ? new Response(JSON.stringify({ ...rotation(2026), slots: [] })) :
+        new Response("", { status: Number(failure) });
+    } } as Services;
+    assert.equal(await getFamilyTime(s, "nobody@example.invalid", "synthetic", "/scheduler"), null, failure);
+    elapsed = 299_999;
+    assert.equal(await getFamilyTime(s, "nobody@example.invalid", "synthetic", "/scheduler"), null);
+    assert.equal(calls, 1);
+    elapsed = 300_000;
+    assert.equal((await getFamilyTime(s, "nobody@example.invalid", "synthetic", "/scheduler"))?.slots.length, 4);
+    assert.equal(calls, 2);
+    elapsed += 3_599_999;
+    await getFamilyTime(s, "nobody@example.invalid", "synthetic", "/scheduler");
+    assert.equal(calls, 2);
+    elapsed++;
+    await getFamilyTime(s, "nobody@example.invalid", "synthetic", "/scheduler");
+    assert.equal(calls, 3);
+  }
+});
+
+test("Family time logs reason/year once per outage, resets on recovery, and fresh checks bypass cached failures", async () => {
+  process.env.SCHEDULER_BASE_URL = "https://scheduler.example.invalid";
+  process.env.SITE_SERVICE_KEY = "synthetic-home-key";
+  const warnings: unknown[][] = [];
+  const warn = logger.warn;
+  logger.warn = ((...args: unknown[]) => { warnings.push(args); }) as typeof logger.warn;
+  try {
+    let available = false, calls = 0, elapsed = 0;
+    const s = { now: () => new Date(Date.parse("2026-06-01T12:00:00Z") + elapsed), schedulerFetch: async () => {
+      calls++;
+      if (!available) throw new Error("nobody@example.invalid synthetic-home-key https://private.invalid");
+      return new Response(JSON.stringify(rotation(2026)));
+    } } as Services;
+    await getFamilyTime(s, "nobody@example.invalid", "synthetic", "/scheduler");
+    assert.deepEqual(await checkFamilyTime(s, "nobody@example.invalid", "synthetic-other"),
+      { ok: false, reason: "unreachable", year: 2026, slotCount: 0 });
+    elapsed = 300_000;
+    await getFamilyTime(s, "nobody@example.invalid", "synthetic", "/scheduler");
+    assert.equal(warnings.length, 1, "No repeated outage log across members, diagnostic calls or cache expiration");
+    assert.deepEqual(warnings[0][0], { reason: "unreachable", year: 2026 });
+    available = true;
+    assert.deepEqual(await checkFamilyTime(s, "nobody@example.invalid", "synthetic"),
+      { ok: true, reason: "ok", year: 2026, slotCount: 4 });
+    assert.equal(calls, 4);
+    assert.equal(await getFamilyTime(s, "nobody@example.invalid", "synthetic", "/scheduler"), null,
+      "Diagnostics don't overwrite Home's existing cache");
+    available = false;
+    await checkFamilyTime(s, "nobody@example.invalid", "synthetic");
+    assert.equal(warnings.length, 2, "Recovery permits the next outage's single log");
+    for (const [reason, fetcher] of [
+      ["401", async () => new Response("", { status: 401 })],
+      ["other status", async () => new Response("", { status: 503 })],
+      ["empty slots", async () => new Response(JSON.stringify({ ...rotation(2026), slots: [] }))],
+      ["invalid response", async () => new Response("{}")],
+    ] as const) {
+      const result = await checkFamilyTime({ now: s.now, schedulerFetch: fetcher } as Services, "nobody@example.invalid", "synthetic");
+      assert.equal(result.reason, reason);
+      assert.equal((warnings.at(-1)![0] as { year: number }).year, 2026);
+    }
+    delete process.env.SITE_SERVICE_KEY;
+    const missingService = { now: s.now } as Services;
+    assert.equal((await checkFamilyTime(missingService, "nobody@example.invalid", "synthetic")).reason, "setting missing");
+    const before = warnings.length;
+    process.env.SITE_SERVICE_KEY = "synthetic-home-key";
+    missingService.schedulerFetch = async () => new Response(JSON.stringify(rotation(2026)));
+    await getFamilyTime(missingService, "nobody@example.invalid", "synthetic", "/scheduler");
+    delete process.env.SITE_SERVICE_KEY;
+    // A cached success is retained for its normal hour, but a fresh check sees the missing setting.
+    assert.equal((await checkFamilyTime(missingService, "nobody@example.invalid", "synthetic")).reason, "setting missing");
+    assert.equal(warnings.length, before + 1);
+    const text = JSON.stringify(warnings);
+    for (const forbidden of ["nobody@", "synthetic-home-key", "synthetic-other", "private.invalid", "scheduler.example.invalid"]) assert(!text.includes(forbidden));
+  } finally {
+    logger.warn = warn;
+    process.env.SITE_SERVICE_KEY = "synthetic-home-key";
+  }
 });
 
 test("Family time failures, empty slots, malformed data, missing settings and redirects are omitted", async () => {
@@ -126,8 +218,13 @@ test("Home and member-view: isolated synthetic development records", async t => 
   const editor = await cookie("editor", []);
   const legacyAdmin = await cookie("admin", null);
   const backdoor = await cookie("admin", ["forecast"], "magic-link");
+  let schedulerCalls = 0, schedulerStatus = 200;
   const app = createApp({ db, now: () => new Date(now),
-    schedulerFetch: async input => new Response(JSON.stringify(rotation(Number(new URL(String(input)).searchParams.get("year"))))) });
+    schedulerFetch: async input => {
+      schedulerCalls++;
+      return schedulerStatus === 200 ? new Response(JSON.stringify(rotation(Number(new URL(String(input)).searchParams.get("year"))))) :
+        new Response("", { status: schedulerStatus });
+    } });
   try {
     await t.test("new session flag has a safe false default, including existing-style inserts", async () => {
       assert.equal((await db.select().from(sessions).where(eq(sessions.hash, admin.hash)))[0].viewAsMember, false);
@@ -221,6 +318,31 @@ test("Home and member-view: isolated synthetic development records", async t => 
       await request(app).put("/api/admin/home-display").set("Cookie", admin.cookie).send({ slideshowEmbedUrl: null }).expect(200);
       await request(app).get("/api/admin/home-display").set("Cookie", admin.cookie).expect(200)
         .expect(r => assert.equal(r.body.slideshowEmbedUrl, null));
+    });
+    await t.test("family-time check is admin-only, uncached, private, and refuses view-as-member", async () => {
+      const path = "/api/admin/family-time/check";
+      await request(app).get(path).expect(401);
+      for (const actor of [member, editor]) await request(app).get(path).set("Cookie", actor.cookie).expect(403);
+      await request(app).get("/api/home").set("Cookie", admin.cookie).expect(200);
+      const before = schedulerCalls;
+      for (let n = 0; n < 2; n++) {
+        await request(app).get(path).set("Cookie", admin.cookie).expect(200).expect(res => {
+          assert.deepEqual(res.body, { ok: true, reason: "ok", year: 2026, slotCount: 4 });
+          assert.match(res.headers["cache-control"], /no-store/);
+          assert(!res.text.includes("nobody@example.invalid"));
+          assert(!res.text.includes("synthetic-home-key"));
+        });
+      }
+      assert.equal(schedulerCalls, before + 2);
+      schedulerStatus = 401;
+      await request(app).get(path).set("Cookie", admin.cookie).expect(200)
+        .expect(res => assert.deepEqual(res.body, { ok: false, reason: "401", year: 2026, slotCount: 0 }));
+      schedulerStatus = 200;
+      await request(app).post("/api/auth/view-as-member").set("Cookie", admin.cookie).send({ enabled: true }).expect(200);
+      const deniedBefore = schedulerCalls;
+      await request(app).get(path).set("Cookie", admin.cookie).expect(403);
+      assert.equal(schedulerCalls, deniedBefore);
+      await request(app).post("/api/auth/view-as-member").set("Cookie", admin.cookie).send({ enabled: false }).expect(200);
     });
     await t.test("dues season controls card and instructions on the server, persists and audits settings", async () => {
       await request(app).get("/api/dues").expect(401);

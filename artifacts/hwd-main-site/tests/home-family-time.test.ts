@@ -43,4 +43,8 @@ test("Home order is hero, announcements, optional slideshow, cards; retired Home
   const settings = readFileSync(new URL("../src/pages/admin/admin-home.tsx", import.meta.url), "utf8");
   assert.match(settings, /placeholder="https:\/\/photos\.smugmug\.com\/frame\/\.\.\."/);
   assert(!settings.includes("docs.google.com"));
+  assert.match(settings, /useCheckFamilyTime\(\{ query: \{ enabled: false, retry: false, gcTime: 0 \} \}\)/);
+  assert.match(settings, /familyTime\.refetch\(\)/);
+  assert.match(settings, /Check family time/);
+  for (const field of ["ok", "reason", "year", "slotCount"]) assert(settings.includes(`familyTime.data.${field}`));
 });

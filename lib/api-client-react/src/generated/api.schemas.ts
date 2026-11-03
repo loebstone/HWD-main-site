@@ -471,6 +471,28 @@ export interface MemberViewInput {
   enabled: boolean;
 }
 
+export type FamilyTimeCheckReason = typeof FamilyTimeCheckReason[keyof typeof FamilyTimeCheckReason];
+
+
+export const FamilyTimeCheckReason = {
+  ok: 'ok',
+  unreachable: 'unreachable',
+  NUMBER_401: '401',
+  other_status: 'other status',
+  empty_slots: 'empty slots',
+  setting_missing: 'setting missing',
+  invalid_setting: 'invalid setting',
+  invalid_response: 'invalid response',
+} as const;
+
+export interface FamilyTimeCheck {
+  ok: boolean;
+  reason: FamilyTimeCheckReason;
+  year: number;
+  /** @minimum 0 */
+  slotCount: number;
+}
+
 export interface HomeDisplay {
   /**
      * @maxLength 2048

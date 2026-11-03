@@ -32,6 +32,8 @@ export * from './duesSettings';
 export * from './emailInput';
 export * from './familySlot';
 export * from './familyTime';
+export * from './familyTimeCheck';
+export * from './familyTimeCheckReason';
 export * from './familyTimeYourFamily';
 export * from './fileInput';
 export * from './getRosterEntryParams';

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { getGetHomeDisplayQueryKey, getGetHomeQueryKey, useGetHomeDisplay, useUpdateHomeDisplay } from "@workspace/api-client-react";
+import { getGetHomeDisplayQueryKey, getGetHomeQueryKey, useGetHomeDisplay, useUpdateHomeDisplay, useCheckFamilyTime } from "@workspace/api-client-react";
 import { PageHeader } from "@/components/page-header";
 import { AdminTabs } from "@/components/admin/admin-tabs";
 import { ErrorState, ListSkeleton } from "@/components/states";
@@ -15,6 +15,7 @@ export function AdminHomePage() {
   const { toast } = useToast();
   const display = useGetHomeDisplay();
   const save = useUpdateHomeDisplay();
+  const familyTime = useCheckFamilyTime({ query: { enabled: false, retry: false, gcTime: 0 } });
   const [url, setUrl] = useState("");
   const saved = useRef<string | null>(null);
   const dirty = saved.current !== null && url.trim() !== saved.current;
@@ -66,6 +67,17 @@ export function AdminHomePage() {
             {dirty && <span className="text-sm text-primary" data-testid="text-home-unsaved">Unsaved changes</span>}
           </div>
         </section>}
+      <section className="mt-6 max-w-2xl rounded-2xl border bg-card p-5 md:p-6 space-y-3">
+        <h2 className="text-xl">Family time</h2>
+        <p className="text-sm text-muted-foreground">Check the Scheduler now, without using the Home page cache.</p>
+        <Button variant="outline" onClick={() => void familyTime.refetch()} disabled={familyTime.isFetching} data-testid="button-check-family-time">
+          {familyTime.isFetching ? "Checking…" : "Check family time"}
+        </Button>
+        {familyTime.isError ? <p role="alert" className="text-sm text-destructive">{errorMessage(familyTime.error, "Couldn't check family time. Please try again.")}</p> :
+          familyTime.data && !familyTime.isFetching && <p role="status" className="text-sm break-words" data-testid="family-time-check-result">
+            {familyTime.data.ok ? "Connected" : "Unavailable"} · {familyTime.data.reason} · Year {familyTime.data.year} · {familyTime.data.slotCount} slots
+          </p>}
+      </section>
     </div>
   );
 }

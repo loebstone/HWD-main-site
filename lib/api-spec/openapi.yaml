@@ -21,6 +21,18 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/Identity" }
         "403": { description: Administrator access required }
+  /admin/family-time/check:
+    get:
+      operationId: checkFamilyTime
+      description: Admin-only live Scheduler check; bypasses the Home cache and never returns member email or credentials.
+      responses:
+        "200":
+          description: Fresh current-or-next-season check, including categorized failure
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/FamilyTimeCheck" }
+        "401": { description: Authentication required }
+        "403": { description: Administrator access required }
   /admin/home-display:
     get:
       operationId: getHomeDisplay
@@ -867,6 +879,16 @@ components:
       required: [enabled]
       properties:
         enabled: { type: boolean }
+    FamilyTimeCheck:
+      type: object
+      required: [ok, reason, year, slotCount]
+      properties:
+        ok: { type: boolean }
+        reason:
+          type: string
+          enum: [ok, unreachable, "401", "other status", "empty slots", "setting missing", "invalid setting", "invalid response"]
+        year: { type: integer }
+        slotCount: { type: integer, minimum: 0 }
     HomeDisplay:
       type: object
       required: [slideshowEmbedUrl]

@@ -40,6 +40,7 @@ import type {
   DocumentMoveInput,
   DuesSettings,
   EmailInput,
+  FamilyTimeCheck,
   FileInput,
   GetRosterEntryParams,
   Grant,
@@ -175,6 +176,104 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
       > => {
       return useMutation(getSetViewAsMemberMutationOptions(options), queryClient);
     }
+
+export const getCheckFamilyTimeUrl = () => {
+
+
+
+
+  return `/api/admin/family-time/check`
+}
+
+/**
+ * Admin-only live Scheduler check; bypasses the Home cache and never returns member email or credentials.
+ */
+export const checkFamilyTime = async ( options?: Parameters<typeof customFetch>[1]): Promise<FamilyTimeCheck> => {
+
+  return customFetch<FamilyTimeCheck>(getCheckFamilyTimeUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getCheckFamilyTimeQueryKey = () => {
+    return [
+    `/api/admin/family-time/check`
+    ] as const;
+    }
+
+
+export const getCheckFamilyTimeQueryOptions = <TData = Awaited<ReturnType<typeof checkFamilyTime>>, TError = ErrorType<void>>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof checkFamilyTime>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getCheckFamilyTimeQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof checkFamilyTime>>> = ({ signal }) => checkFamilyTime({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof checkFamilyTime>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type CheckFamilyTimeQueryResult = NonNullable<Awaited<ReturnType<typeof checkFamilyTime>>>
+export type CheckFamilyTimeQueryError = ErrorType<void>
+
+
+export function useCheckFamilyTime<TData = Awaited<ReturnType<typeof checkFamilyTime>>, TError = ErrorType<void>>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof checkFamilyTime>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof checkFamilyTime>>,
+          TError,
+          Awaited<ReturnType<typeof checkFamilyTime>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useCheckFamilyTime<TData = Awaited<ReturnType<typeof checkFamilyTime>>, TError = ErrorType<void>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof checkFamilyTime>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof checkFamilyTime>>,
+          TError,
+          Awaited<ReturnType<typeof checkFamilyTime>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useCheckFamilyTime<TData = Awaited<ReturnType<typeof checkFamilyTime>>, TError = ErrorType<void>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof checkFamilyTime>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useCheckFamilyTime<TData = Awaited<ReturnType<typeof checkFamilyTime>>, TError = ErrorType<void>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof checkFamilyTime>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getCheckFamilyTimeQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
 
 export const getGetHomeDisplayUrl = () => {
 

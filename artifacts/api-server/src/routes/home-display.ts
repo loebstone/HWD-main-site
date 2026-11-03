@@ -4,6 +4,16 @@ import { audit } from "../lib/audit";
 import { getDuesSettings, getHomeDisplay, homeDisplayInput, duesInput } from "../lib/home-display";
 import { requireAdmin, visitorAddress } from "../middlewares/security";
 import type { Services } from "../lib/services";
+import { checkFamilyTime } from "../lib/family-time";
+
+export function familyTimeCheckRoutes(s: Services) {
+  const router = Router();
+  router.use(requireAdmin);
+  router.get("/check", async (req, res) => {
+    res.json(await checkFamilyTime(s, req.siteSession!.email, req.siteIdentity!.personId));
+  });
+  return router;
+}
 
 export function homeDisplayRoutes(s: Services) {
   const router = Router();
