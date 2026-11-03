@@ -11,6 +11,7 @@ export interface Services {
   storage: typeof privateStorage;
   now: () => Date;
   importFetch?: typeof fetch;
+  schedulerFetch?: typeof fetch;
 }
 export const defaultServices: Services = { db, roster: checkRoster, redeemTicket: redeemRosterTicket, email: sendSignInLink, contactEmail: sendContactMail,
   storage: privateStorage, now: () => new Date() };

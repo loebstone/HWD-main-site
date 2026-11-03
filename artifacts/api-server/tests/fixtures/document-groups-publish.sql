@@ -22,6 +22,8 @@ CREATE TABLE "site_data_migrations" (
 ALTER TABLE "site_documents" DROP CONSTRAINT "site_document_year";
 ALTER TABLE "site_documents" ALTER COLUMN "section" DROP NOT NULL;
 ALTER TABLE "site_sessions" ADD COLUMN "roster_apps" jsonb;
+-- Later additive session feature: safe for all already-populated sessions.
+ALTER TABLE "site_sessions" ADD COLUMN "view_as_member" boolean DEFAULT false NOT NULL;
 ALTER TABLE "site_documents" ADD COLUMN "group_id" uuid;
 ALTER TABLE "site_documents" ADD CONSTRAINT "site_documents_group_id_site_document_groups_id_fk"
   FOREIGN KEY ("group_id") REFERENCES "public"."site_document_groups"("id") ON DELETE no action ON UPDATE no action;

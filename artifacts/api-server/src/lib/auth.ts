@@ -27,13 +27,19 @@ export async function issueLink(s: Services, email: string, origin: string): Pro
   await s.email(email, `${origin}/auth/continue?token=${token}`);
 }
 
-export async function identity(s: Services, session: SiteSession): Promise<SiteIdentity> {
+export async function underlyingIdentity(s: Services, session: SiteSession): Promise<SiteIdentity> {
   if (session.signInMethod === "roster") {
     if (!session.rosterRole) throw new Refusal("Invalid Roster session");
     return { personId: session.personId, displayName: session.displayName, goesBy: session.goesBy, role: session.rosterRole, apps: session.rosterApps };
   }
   const [grant] = await s.db.select().from(grants).where(and(eq(grants.personId, session.personId), isNull(grants.endedAt)));
   return { personId: session.personId, displayName: session.displayName, goesBy: session.goesBy, role: grant?.role ?? "member", apps: session.rosterApps };
+}
+export async function identity(s: Services, session: SiteSession): Promise<SiteIdentity> {
+  const actor = await underlyingIdentity(s, session);
+  return session.viewAsMember
+    ? { ...actor, role: "member", apps: ["site", "scheduler", "roster"], viewAsMember: true }
+    : { ...actor, viewAsMember: false };
 }
 export async function verify(s: Services, token: string, address: string) {
   required("SESSION_SECRET");

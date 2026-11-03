@@ -9,7 +9,8 @@ const actions = ["sign-in", "sign-out", "document-open", "document-upload", "doc
   "document-retire", "grant-create", "grant-end", "announcement-create", "announcement-edit",
   "announcement-retire", "notice-edit", "apps-edit", "import", "document-edit",
   "group-create", "group-edit", "group-retire", "document-move", "home-edit",
-  "menu-edit", "contact-send", "contact-settings-edit"] as const;
+  "menu-edit", "contact-send", "contact-settings-edit",
+  "view-as-member-on", "view-as-member-off", "dues-settings-edit"] as const;
 
 export function auditRoutes(s: Services) {
   const router = Router();

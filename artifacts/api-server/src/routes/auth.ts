@@ -4,7 +4,7 @@ import { sessions } from "@workspace/db";
 import { RequestSignInBody, VerifySignInBody } from "@workspace/api-zod";
 import { z } from "zod";
 import { appOrigin, neutralMessage } from "../lib/config";
-import { issueLink, normaliseEmail, verify, Refusal } from "../lib/auth";
+import { issueLink, normaliseEmail, verify, Refusal, identity, underlyingIdentity } from "../lib/auth";
 import { audit } from "../lib/audit";
 import { cookieOptions, visitorAddress, withinLimit, requireSession } from "../middlewares/security";
 import type { Services } from "../lib/services";
@@ -59,6 +59,26 @@ export function authRoutes(s: Services) {
   });
   router.use(requireSession(s));
   router.get("/session", (req, res) => { res.json(req.siteIdentity); });
+  // The only staff-related operation permitted during member view is switching
+  // this same session back. Always re-authorize against the actual role, not input.
+  router.post("/view-as-member", async (req, res): Promise<void> => {
+    const { enabled } = z.object({ enabled: z.boolean() }).strict().parse(req.body);
+    const result = await s.db.transaction(async tx => {
+      const [current] = await tx.select().from(sessions).where(eq(sessions.hash, req.siteSession!.hash)).for("update");
+      if (!current || current.endedAt) return null;
+      const scoped = { ...s, db: tx as unknown as Services["db"] };
+      const actor = await underlyingIdentity(scoped, current);
+      if (actor.role !== "admin") return null;
+      if (current.viewAsMember === enabled) return identity(scoped, current);
+      const [updated] = await tx.update(sessions).set({ viewAsMember: enabled })
+        .where(eq(sessions.hash, current.hash)).returning();
+      await audit(tx, actor, enabled ? "view-as-member-on" : "view-as-member-off", null,
+        `View as member ${enabled ? "on" : "off"}`, visitorAddress(req));
+      return identity(scoped, updated!);
+    });
+    if (!result) { res.status(403).json({ error: "Administrator access required" }); return; }
+    res.json(result);
+  });
   router.post("/sign-out", async (req, res): Promise<void> => {
     await s.db.transaction(async tx => {
       await audit(tx, req.siteIdentity!, "sign-out", null, "Signed out", visitorAddress(req));

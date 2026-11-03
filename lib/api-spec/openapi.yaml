@@ -6,6 +6,74 @@ info:
 servers:
   - url: /api
 paths:
+  /auth/view-as-member:
+    post:
+      operationId: setViewAsMember
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/MemberViewInput" }
+      responses:
+        "200":
+          description: Effective session identity after changing member view
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Identity" }
+        "403": { description: Administrator access required }
+  /admin/home-display:
+    get:
+      operationId: getHomeDisplay
+      responses:
+        "200":
+          description: Home display settings for administrators
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/HomeDisplay" }
+    put:
+      operationId: updateHomeDisplay
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/HomeDisplay" }
+      responses:
+        "200":
+          description: Saved Home display settings
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/HomeDisplay" }
+  /admin/dues:
+    get:
+      operationId: getDuesSettings
+      responses:
+        "200":
+          description: Administrator dues settings
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DuesSettings" }
+    put:
+      operationId: updateDuesSettings
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/DuesSettings" }
+      responses:
+        "200":
+          description: Saved dues settings
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DuesSettings" }
+  /dues:
+    get:
+      operationId: getDues
+      responses:
+        "200":
+          description: Member dues instructions; text withheld when season is closed
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DuesSettings" }
   /suite/menu:
     get:
       operationId: getSuiteMenu
@@ -635,6 +703,7 @@ components:
         displayName: { type: string }
         goesBy: { type: ["string", "null"] }
         role: { type: string, enum: [member, editor, admin] }
+        viewAsMember: { type: boolean, default: false }
         apps:
           type: [array, "null"]
           items: { type: string }
@@ -783,6 +852,64 @@ components:
         notice: { $ref: "#/components/schemas/HomeNotice" }
         reminders: { type: array, items: { $ref: "#/components/schemas/Announcement" } }
         apps: { type: array, items: { $ref: "#/components/schemas/AppLink" } }
+        latestMinutes:
+          anyOf:
+            - { $ref: "#/components/schemas/Document" }
+            - { type: "null" }
+        slideshowEmbedUrl: { type: ["string", "null"], format: uri }
+        familyTime:
+          anyOf:
+            - { $ref: "#/components/schemas/FamilyTime" }
+            - { type: "null" }
+        cards: { type: array, items: { $ref: "#/components/schemas/HomeCard" } }
+    MemberViewInput:
+      type: object
+      required: [enabled]
+      properties:
+        enabled: { type: boolean }
+    HomeDisplay:
+      type: object
+      required: [slideshowEmbedUrl]
+      properties:
+        slideshowEmbedUrl: { type: ["string", "null"], maxLength: 2048 }
+    DuesSettings:
+      type: object
+      required: [seasonOpen, text]
+      properties:
+        seasonOpen: { type: boolean }
+        text: { type: string, maxLength: 10000 }
+    HomeCard:
+      type: object
+      required: [id, label, href]
+      properties:
+        id: { type: string }
+        label: { type: string }
+        href: { type: string }
+    FamilySlot:
+      type: object
+      required: [slotNumber, segmentIndex, familyGroupId, familyName, displayColor, startDate, endDate, isManualOverride]
+      properties:
+        slotNumber: { type: integer }
+        segmentIndex: { type: integer }
+        familyGroupId: { type: string }
+        familyName: { type: string }
+        displayColor: { type: string }
+        startDate: { type: string, format: date }
+        endDate: { type: string, format: date, description: Exclusive end date }
+        isManualOverride: { type: boolean }
+    FamilyTime:
+      type: object
+      required: [year, slots, yourFamily, schedulerHref]
+      properties:
+        year: { type: integer }
+        slots: { type: array, items: { $ref: "#/components/schemas/FamilySlot" } }
+        yourFamily:
+          type: [object, "null"]
+          required: [familyGroupId, familyName]
+          properties:
+            familyGroupId: { type: string }
+            familyName: { type: string }
+        schedulerHref: { type: string }
     GrantInput:
       type: object
       required: [personId, displayName, role]
@@ -859,7 +986,7 @@ components:
         hideAfter: { type: string, format: date }
     AuditAction:
       type: string
-      enum: [sign-in, sign-out, document-open, document-upload, document-replace, document-retire, document-edit, document-move, group-create, group-edit, group-retire, home-edit, grant-create, grant-end, announcement-create, announcement-edit, announcement-retire, notice-edit, apps-edit, menu-edit, contact-send, contact-settings-edit, import]
+      enum: [sign-in, sign-out, document-open, document-upload, document-replace, document-retire, document-edit, document-move, group-create, group-edit, group-retire, home-edit, grant-create, grant-end, announcement-create, announcement-edit, announcement-retire, notice-edit, apps-edit, menu-edit, contact-send, contact-settings-edit, view-as-member-on, view-as-member-off, dues-settings-edit, import]
     AuditEntry:
       type: object
       required: [id, at, actorPersonId, actorName, action, targetId, description, visitorAddress]

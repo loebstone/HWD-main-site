@@ -95,6 +95,7 @@ export interface Identity {
   /** @nullable */
   goesBy: string | null;
   role: IdentityRole;
+  viewAsMember?: boolean;
   /**
      * Null or absent means legacy session; empty array is an explicit lack of tool access
      * @nullable
@@ -418,6 +419,40 @@ export interface AppLink {
   url: string;
 }
 
+export interface FamilySlot {
+  slotNumber: number;
+  segmentIndex: number;
+  familyGroupId: string;
+  familyName: string;
+  displayColor: string;
+  startDate: string;
+  /** Exclusive end date */
+  endDate: string;
+  isManualOverride: boolean;
+}
+
+/**
+ * @nullable
+ */
+export type FamilyTimeYourFamily = {
+  familyGroupId: string;
+  familyName: string;
+} | null;
+
+export interface FamilyTime {
+  year: number;
+  slots: FamilySlot[];
+  /** @nullable */
+  yourFamily: FamilyTimeYourFamily;
+  schedulerHref: string;
+}
+
+export interface HomeCard {
+  id: string;
+  label: string;
+  href: string;
+}
+
 export interface HomeSummary {
   documentCount: number;
   featuredGroups: DocumentGroup[];
@@ -425,6 +460,29 @@ export interface HomeSummary {
   notice: HomeNotice;
   reminders: Announcement[];
   apps: AppLink[];
+  latestMinutes?: Document | null;
+  /** @nullable */
+  slideshowEmbedUrl?: string | null;
+  familyTime?: FamilyTime | null;
+  cards?: HomeCard[];
+}
+
+export interface MemberViewInput {
+  enabled: boolean;
+}
+
+export interface HomeDisplay {
+  /**
+     * @maxLength 2048
+     * @nullable
+     */
+  slideshowEmbedUrl: string | null;
+}
+
+export interface DuesSettings {
+  seasonOpen: boolean;
+  /** @maxLength 10000 */
+  text: string;
 }
 
 export type GrantInputRole = typeof GrantInputRole[keyof typeof GrantInputRole];
@@ -543,6 +601,9 @@ export const AuditAction = {
   'menu-edit': 'menu-edit',
   'contact-send': 'contact-send',
   'contact-settings-edit': 'contact-settings-edit',
+  'view-as-member-on': 'view-as-member-on',
+  'view-as-member-off': 'view-as-member-off',
+  'dues-settings-edit': 'dues-settings-edit',
   import: 'import',
 } as const;
 

@@ -1,82 +1,111 @@
 import { Link } from "wouter";
-import { useGetHome, useListAnnouncements } from "@workspace/api-client-react";
-import { ArrowRight } from "lucide-react";
+import { useGetHome, type FamilyTime, type HomeCard } from "@workspace/api-client-react";
+import { ArrowRight, ArrowUpRight, CalendarDays, FileText } from "lucide-react";
 import { useSession, nameOf } from "@/lib/session";
-import { DocumentCard } from "@/components/document-card";
-import { EmptyState, ErrorState, ListSkeleton } from "@/components/states";
+import { ErrorState } from "@/components/states";
 import { Skeleton } from "@/components/ui/skeleton";
 import { NoticeText } from "@/components/notice-text";
-import { formatDate } from "@/lib/docs";
+import { openUrl } from "@/lib/docs";
+import { familyRows, formatRange, safeColor } from "@/lib/family-time";
+import { localPath } from "@/lib/suite-menu";
+
+function CardLink({ card, i }: { card: HomeCard; i: number }) {
+  const cls = "rise group flex min-h-24 items-center justify-between gap-3 rounded-xl border bg-card p-5 hover:border-primary/40 hover:shadow-md transition-all";
+  const body = <><span className="min-w-0 break-words font-display text-xl sm:text-2xl">{card.label}</span><ArrowRight className="h-5 w-5 shrink-0 text-primary transition-transform group-hover:translate-x-1" /></>;
+  const local = localPath(card.href);
+  return local
+    ? <Link href={local} className={cls} style={{ animationDelay: `${i * 50}ms` }} data-testid={`link-card-${card.id}`}>{body}</Link>
+    : <a href={card.href} className={cls} style={{ animationDelay: `${i * 50}ms` }} data-testid={`link-card-${card.id}`}>{body}</a>;
+}
+
+function FamilyTimeBlock({ ft }: { ft: FamilyTime }) {
+  const rows = familyRows(ft);
+  const mine = ft.yourFamily ? rows.find((r) => r.familyGroupId === ft.yourFamily?.familyGroupId) : undefined;
+  const local = localPath(ft.schedulerHref);
+  const linkCls = "inline-flex items-center gap-1 text-sm text-primary underline underline-offset-4";
+  return (
+    <div className="border-t border-dashed pt-5" data-testid="section-family-time">
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <p className="flex items-center gap-2 text-xs uppercase tracking-[0.2em] text-muted-foreground"><CalendarDays className="h-4 w-4" /> Family time {ft.year}</p>
+        {ft.schedulerHref && (local
+          ? <Link href={local} className={linkCls} data-testid="link-scheduler">Scheduler <ArrowRight className="h-3.5 w-3.5" /></Link>
+          : <a href={ft.schedulerHref} className={linkCls} data-testid="link-scheduler">Scheduler <ArrowRight className="h-3.5 w-3.5" /></a>)}
+      </div>
+      {mine && <div className="mt-3 rounded-lg px-4 py-3 bg-background/60 border-l-4" style={{ borderLeftColor: safeColor(mine.displayColor) }} data-testid="text-your-family-time">
+        <p className="font-display text-xl" style={{ color: safeColor(mine.displayColor) }}>Your family's time: {mine.segments.map((s) => formatRange(s)).join(" and ")}</p>
+        <p className="mt-1 text-sm text-muted-foreground">{mine.familyName}</p>
+      </div>}
+      {!!rows.length && <ul className="mt-3 grid sm:grid-cols-2 gap-x-6 gap-y-2">
+        {rows.map((r) => <li key={r.familyGroupId} className="flex items-start gap-2.5 min-w-0" data-testid={`row-family-${r.familyGroupId}`}>
+          <span className="mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: safeColor(r.displayColor) }} aria-hidden />
+          <span className="min-w-0"><span className="font-medium break-words">{r.familyName}</span>{" "}
+            <span className="text-muted-foreground">{r.segments.map((s) => formatRange(s)).join(", ")}</span></span>
+        </li>)}
+      </ul>}
+    </div>
+  );
+}
 
 export default function HomePage() {
   const { data: me } = useSession();
   const home = useGetHome();
-  const notice = home.data?.notice;
-  const announcements = useListAnnouncements({ showPast: false });
+  const d = home.data;
   const img = `${import.meta.env.BASE_URL}images/hwd-farm-illustration.jpg`;
+  const notice = d?.notice?.text;
+  const reminders = d?.reminders ?? [];
+  const minutes = d?.latestMinutes ?? null;
+  const familyTime = d?.familyTime ?? null;
+  const slideshow = d?.slideshowEmbedUrl?.trim() || null;
+  const cards = d?.cards ?? [];
+  const hasAnnouncements = !!(minutes || notice || reminders.length || familyTime);
 
   return (
-    <div className="space-y-14">
+    <div className="space-y-10 md:space-y-12">
       <section className="rise">
-        <p className="text-xs uppercase tracking-[0.22em] text-muted-foreground">Lee, Massachusetts</p>
-        <h1 className="mt-2 text-2xl sm:text-4xl md:text-5xl leading-snug break-words" data-testid="text-greeting">
-          Good to see you, {me ? nameOf(me) : ""}.
-        </h1>
-        <figure className="mt-8 overflow-hidden rounded-2xl border shadow-lg bg-card">
+        <figure className="relative overflow-hidden rounded-2xl border shadow-lg bg-card">
           <img src={img} alt="Illustration of HWD Farm" className="w-full aspect-[16/9] md:aspect-[21/9] object-cover" data-testid="img-hero" />
         </figure>
+        <p className="mt-4 text-base sm:text-lg text-muted-foreground break-words" data-testid="text-greeting">
+          Good to see you, {me ? nameOf(me) : ""}.
+        </p>
       </section>
 
-      {notice?.text && <section className="rounded-xl border-l-4 border-primary bg-accent/50 px-5 py-4" data-testid="notice-home">
-        <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">A note for the family</p>
-        <p className="mt-1"><NoticeText text={notice.text} /></p>
-      </section>}
-
-      <section>
-        <div className="flex items-end justify-between mb-4">
-          <div><p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">For this week</p><h2 className="mt-1 text-2xl md:text-3xl leading-snug">Reminders</h2></div>
-          <Link href="/announcements" className="text-sm text-primary underline underline-offset-4" data-testid="link-all-announcements">All announcements</Link>
+      <section className="rounded-2xl border bg-card p-5 md:p-7" data-testid="section-announcements">
+        <div className="flex items-end justify-between gap-3 mb-4">
+          <h2 className="text-2xl md:text-3xl leading-snug">Announcements</h2>
+          <Link href="/announcements" className="text-sm text-primary underline underline-offset-4 shrink-0" data-testid="link-all-announcements">See all</Link>
         </div>
-        {announcements.isLoading ? <ListSkeleton rows={2} /> : announcements.isError ? <ErrorState onRetry={() => announcements.refetch()} /> :
-          !(announcements.data || []).filter((a) => a.placement === "reminders" || a.placement === "both").length ?
-            <p className="rounded-xl border bg-card px-5 py-6 text-muted-foreground" data-testid="empty-reminders">There are no current reminders.</p> :
-            <div className="space-y-3">{(announcements.data || []).filter((a) => a.placement === "reminders" || a.placement === "both").slice(0, 5).map((item) =>
-              <article key={item.id} className="rounded-xl border bg-card px-5 py-4" data-testid={`reminder-${item.id}`}>
-                <div className="flex flex-wrap items-baseline justify-between gap-2"><h3 className="text-xl">{item.title}</h3><time className="text-sm text-muted-foreground">{new Date(item.date).toLocaleDateString()}</time></div>
-                <p className="mt-2 whitespace-pre-wrap text-muted-foreground">{item.body}</p>
-              </article>)}</div>}
+        {home.isLoading ? <div className="space-y-3"><Skeleton className="h-6 w-2/3" /><Skeleton className="h-16" /><Skeleton className="h-16" /></div> :
+          home.isError ? <ErrorState onRetry={() => home.refetch()} /> :
+          !hasAnnouncements ? <p className="text-muted-foreground" data-testid="empty-announcements">Nothing new right now.</p> :
+          <div className="space-y-5">
+            {minutes && <p className="flex items-start gap-2 text-lg" data-testid="text-latest-minutes">
+              <FileText className="mt-1 h-5 w-5 shrink-0 text-primary" />
+              <span className="min-w-0 break-words">Latest minutes:{" "}
+                <a href={openUrl(minutes.id)} target="_blank" rel="noopener noreferrer" className="text-primary underline underline-offset-4" data-testid="link-latest-minutes">
+                  {minutes.title}<ArrowUpRight className="ml-0.5 inline h-4 w-4" /></a></span>
+            </p>}
+            {notice && <div className="rounded-xl border-l-4 border-primary bg-accent/50 px-5 py-4" data-testid="notice-home"><NoticeText text={notice} /></div>}
+            {!!reminders.length && <div className="space-y-3" data-testid="list-reminders">
+              {reminders.map((item) => <article key={item.id} className="rounded-xl border bg-background/50 px-5 py-4" data-testid={`reminder-${item.id}`}>
+                <h3 className="text-xl break-words">{item.title}</h3>
+                {item.body && <p className="mt-1.5 text-muted-foreground"><NoticeText text={item.body} /></p>}
+              </article>)}
+            </div>}
+            {familyTime && <FamilyTimeBlock ft={familyTime} />}
+          </div>}
       </section>
 
-      {home.isLoading ? <section className="grid sm:grid-cols-2 gap-4"><Skeleton className="h-28 rounded-xl" /><Skeleton className="h-28 rounded-xl" /></section> :
-        !!home.data?.featuredGroups.length && <section data-testid="section-quick-access">
-        <div className="mb-4"><p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Quick access</p><h2 className="mt-1 text-2xl md:text-3xl leading-snug" data-testid="heading-quick-access">Family records</h2></div>
-        <div className="grid sm:grid-cols-2 gap-4" data-testid="section-featured-groups">
-        {home.data.featuredGroups.map((g, i) => (
-          <Link key={g.id} href={`/documents/${g.slug}`} style={{ animationDelay: `${i * 60}ms` }}
-            className="rise group min-w-0 rounded-xl border bg-card p-5 hover:border-primary/40 hover:shadow-md transition-all"
-            data-testid={`link-quick-${g.slug}`}>
-            <span className="flex items-center justify-between gap-3 font-display text-2xl">
-              <span className="min-w-0 break-words">{g.name}</span><ArrowRight className="h-5 w-5 shrink-0 text-primary transition-transform group-hover:translate-x-1" />
-            </span>
-            {g.description && <span className="mt-1 block text-muted-foreground break-words">{g.description}</span>}
-            <span className="mt-3 block text-sm text-muted-foreground truncate">
-              {g.documentCount} {g.documentCount === 1 ? "document" : "documents"}{g.latestTitle ? ` · Latest: ${g.latestTitle}` : ""}{g.latestDate ? `, ${formatDate(g.latestDate)}` : ""}
-            </span>
-          </Link>
-        ))}
+      {slideshow && <section data-testid="section-slideshow">
+        <div className="relative w-full overflow-hidden rounded-2xl border bg-card shadow-sm" style={{ aspectRatio: "16 / 9" }}>
+          <iframe src={slideshow} title="Family slideshow" loading="lazy" referrerPolicy="no-referrer" allow="" className="absolute inset-0 h-full w-full border-0" data-testid="iframe-slideshow" />
         </div>
       </section>}
 
-      <section>
-        <div className="flex items-baseline justify-between mb-5">
-          <h2 className="text-2xl md:text-3xl leading-snug">Recently added</h2>
-          {home.isLoading ? <Skeleton className="h-5 w-24" /> : home.data &&
-            <span className="text-muted-foreground" data-testid="text-document-count">{home.data.documentCount} documents in all</span>}
-        </div>
-        {home.isLoading ? <ListSkeleton rows={3} /> : home.isError ? <ErrorState onRetry={() => home.refetch()} /> :
-          !home.data?.recentDocuments.length ? <EmptyState title="Nothing has been added yet">New documents will show up here as they're added.</EmptyState> :
-          <div className="space-y-4">{home.data.recentDocuments.map((d) => <DocumentCard key={d.id} doc={d} />)}</div>}
-      </section>
+      {home.isLoading ? <section className="grid sm:grid-cols-2 gap-4"><Skeleton className="h-24 rounded-xl" /><Skeleton className="h-24 rounded-xl" /></section> :
+        !!cards.length && <section className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4" data-testid="section-cards">
+          {cards.map((c, i) => <CardLink key={c.id} card={c} i={i} />)}
+        </section>}
     </div>
   );
 }

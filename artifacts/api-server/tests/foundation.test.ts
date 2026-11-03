@@ -763,22 +763,29 @@ test("HWD foundation: isolated development security suite", async (t) => {
       const [historical] = await testDb.select().from(grants).where(eq(grants.id, created.body.id)); assert(historical!.endedAt);
     });
     await t.test("multi-hop proxy chain keys the DB limiter on the real visitor, ignoring spoofed prefixes", async () => {
-      assert.equal(app.get("trust proxy"), 3);
-      const visitor = "203.0.113.208";
-      const chain = (spoof: string) => `${spoof}, ${visitor}, 10.48.40.210, 127.0.0.1`;
-      for (let n = 0; n < 12; n++) {
-        await request(app).get("/api/auth/verify")
-          .set("X-Forwarded-For", chain(`198.51.100.${n + 1}`)).expect(n < 10 ? 200 : 429);
-      }
-      for (let n = 0; n < 12; n++) {
-        await request(app).get("/api/auth/verify")
-          .set("X-Forwarded-For", chain(`192.0.2.${n + 1}`)).expect(429);
-      }
-      const key = "verify-ip:" + createHmac("sha256", process.env.SESSION_SECRET!).update(visitor).digest("hex");
-      const result = await testDb.execute(sql`SELECT hits FROM site_rate_limits WHERE key=${key}`);
-      assert.equal(result.rows[0]?.hits, 24);
-      await request(app).get("/api/auth/verify")
-        .set("X-Forwarded-For", "198.51.100.1, 203.0.113.209, 10.48.40.210, 127.0.0.1").expect(200);
+      const configured = app.get("trust proxy");
+      try {
+        // Isolate audited scenarios from the workspace's tunable runtime setting.
+        for (const hops of [3, 4]) {
+          app.set("trust proxy", hops);
+          const visitor = `203.0.113.${200 + hops}`;
+          const proxies = Array.from({ length: hops - 1 }, (_, n) => `10.48.40.${210 + n}`);
+          const chain = (spoof: string, address = visitor) => [spoof, address, ...proxies].join(", ");
+          for (let n = 0; n < 12; n++) {
+            await request(app).get("/api/auth/verify")
+              .set("X-Forwarded-For", chain(`198.51.100.${n + 1}`)).expect(n < 10 ? 200 : 429);
+          }
+          for (let n = 0; n < 12; n++) {
+            await request(app).get("/api/auth/verify")
+              .set("X-Forwarded-For", chain(`192.0.2.${n + 1}`)).expect(429);
+          }
+          const key = "verify-ip:" + createHmac("sha256", process.env.SESSION_SECRET!).update(visitor).digest("hex");
+          const result = await testDb.execute(sql`SELECT hits FROM site_rate_limits WHERE key=${key}`);
+          assert.equal(result.rows[0]?.hits, 24);
+          await request(app).get("/api/auth/verify")
+            .set("X-Forwarded-For", chain("198.51.100.1", `203.0.113.${220 + hops}`)).expect(200);
+        }
+      } finally { app.set("trust proxy", configured); }
     });
     await t.test("oversized JSON is a plain 413, not a 503 or a PDF-specific error", async () => {
       const response = await request(app).post("/api/auth/link")

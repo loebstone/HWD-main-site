@@ -6,7 +6,7 @@ import { Readable } from "node:stream";
 import pg from "pg";
 import { drizzle } from "drizzle-orm/node-postgres";
 import { eq } from "drizzle-orm";
-import { pool, sessions, documents, documentGroups } from "@workspace/db";
+import { pool, sessions, documents, documentGroups, siteSettings, announcements } from "@workspace/db";
 import * as schema from "@workspace/db/schema";
 import { createApp } from "../src/app";
 import { hashToken, newToken } from "../src/lib/auth";
@@ -17,6 +17,7 @@ import type { Services } from "../src/lib/services";
 if (process.env.NODE_ENV === "production") throw new Error("Browser fixtures are development-only");
 process.env.NODE_ENV = "development";
 process.env.APP_ORIGIN = `https://${process.env.REPLIT_DEV_DOMAIN}`;
+process.env.SCHEDULER_BASE_URL = "https://synthetic-scheduler.example.invalid";
 const host = new URL(process.env.DATABASE_URL!).hostname;
 console.info("Browser fixture environment: development; configured database host before query:", host);
 const schemaName = `hwd_group_browser_${randomUUID().replace(/-/g, "")}`;
@@ -40,7 +41,7 @@ for (const role of ["admin", "member", "editor"] as const) {
   await fixtureDb.insert(sessions).values({
     hash: hashToken(raw), personId: `synthetic-group-browser-${role}`, displayName: `Synthetic, ${role === "admin" ? "Morgan" : "Alex"}`,
     goesBy: role === "admin" ? "Morgan" : null, email: `${role}@example.invalid`, signInMethod: "roster", rosterRole: role,
-    rosterApps: role === "member" ? ["forecast"] : role === "editor" ? [] : null,
+    rosterApps: role === "admin" ? ["site", "forecast", "captable"] : ["site", "scheduler", "roster"],
     authenticatedAt: now, createdAt: now, expiresAt: new Date(now.getTime() + 30 * 86400000),
     lastRenewedAt: now, lastRosterCheckAt: now, lastRosterSuccessAt: now,
   });
@@ -58,8 +59,29 @@ for (const [index, group] of DEFAULT_GROUPS.entries()) {
       sortOrder: 1, note: "Synthetic browser-check document — not a family record." });
   }
 }
+const [staff] = await fixtureDb.insert(documentGroups).values({ name: "Synthetic staff records", slug: "synthetic-staff",
+  visibility: "staff", layout: "list", sortOrder: 99, createdBy: "synthetic-fixture" }).returning();
+await fixtureDb.insert(documents).values({ groupId: staff!.id, title: "Synthetic staff-only record",
+  type: "link", externalUrl: "https://example.invalid/staff", uploadedBy: "synthetic-fixture", uploadedByName: "Synthetic Fixture" });
+await fixtureDb.insert(siteSettings).values([
+  { key: "home-display", value: { slideshowEmbedUrl: "https://photos.smugmug.com/frame/synthetic-fixture" }, updatedBy: "synthetic-fixture" },
+  { key: "dues", value: { seasonOpen: true, text: "Synthetic dues instructions. No real payment is requested.\nhttps://example.invalid/payment" }, updatedBy: "synthetic-fixture" },
+]);
+const day = now.toISOString().slice(0, 10);
+await fixtureDb.insert(announcements).values({ title: "A note for the family", body: "Synthetic reminder for the Home page check.",
+  date: day, hideAfter: new Date(now.getTime() + 60 * 86400000).toISOString().slice(0, 10), placement: "both",
+  createdBy: "synthetic-fixture", createdByName: "Synthetic Fixture" });
 const services: Partial<Services> = {
   db: fixtureDb, roster: async email => ({ allowed: true, personId: `synthetic-group-browser-${email.split("@")[0]}`, displayName: "Synthetic Person", goes_by: null }),
+  schedulerFetch: async input => {
+    const year = Number(new URL(String(input)).searchParams.get("year"));
+    return new Response(JSON.stringify({ year, yourFamily: { familyGroupId: "one", familyName: "Family One" },
+      slots: ["One", "Two", "Three", "Four"].map((name, index) => ({
+        slotNumber: index + 1, segmentIndex: 0, familyGroupId: name.toLowerCase(), familyName: `Family ${name}`,
+        displayColor: ["#244b39", "#946331", "#35678b", "#854963"][index], startDate: `${year}-0${index + 5}-01`,
+        endDate: `${year}-0${index + 6}-01`, isManualOverride: false,
+      })) }));
+  },
   storage: { async save(data) { const key = randomUUID(); bytes.set(key, data); return key; },
     async read(key) { if (!bytes.has(key)) throw new Error("Synthetic file missing"); return Readable.from(bytes.get(key)!); } },
 };

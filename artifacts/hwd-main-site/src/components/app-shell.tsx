@@ -2,7 +2,8 @@ import { useState, type ReactNode } from "react";
 import { Link, useLocation } from "wouter";
 import { useQueryClient } from "@tanstack/react-query";
 import { getGetSuiteMenuQueryKey, useGetSuiteMenu, useSignOut } from "@workspace/api-client-react";
-import { LogOut, Menu, X } from "lucide-react";
+import { Eye, LogOut, Menu, X } from "lucide-react";
+import { useViewAsMemberSwitch } from "@/lib/view-as-member";
 import { useSession, nameOf, canEdit } from "@/lib/session";
 import { cn } from "@/lib/utils";
 import { Logo } from "@/components/logo";
@@ -19,8 +20,11 @@ export function AppShell({ children }: { children: ReactNode }) {
   const menu = useGetSuiteMenu({ query: { queryKey: getGetSuiteMenuQueryKey(), staleTime: 60_000, refetchOnMount: true } });
 
   const items: NavEntry[] = sortItems(menu.data?.items?.length ? menu.data.items : DEFAULT_ITEMS);
-  const tools = visibleSuiteTools(me, menu.data?.tools ?? DEFAULT_TOOLS);
-  const admin: NavEntry[] = canEdit(me) ? [{ id: "admin", label: "Admin", href: "/admin" }] : [];
+  const viewing = me?.viewAsMember === true;
+  const { switchMode, switching } = useViewAsMemberSwitch();
+  const canViewAsMember = !viewing && me?.role === "admin";
+  const tools = viewing ? [] : visibleSuiteTools(me, menu.data?.tools ?? DEFAULT_TOOLS);
+  const admin: NavEntry[] = !viewing && canEdit(me) ? [{ id: "admin", label: "Admin", href: "/admin" }] : [];
   const isActive = (path: string) => (path === "/" ? location === "/" : location.startsWith(path));
 
   async function handleSignOut() {
@@ -51,6 +55,12 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   return (
     <div className="min-h-[100dvh] flex flex-col">
+      {viewing && <div className="bg-primary text-primary-foreground text-sm" role="status" data-testid="banner-view-as-member">
+        <div className="max-w-6xl mx-auto px-5 py-1.5 flex flex-wrap items-center justify-center gap-x-2">
+          <span>Viewing as a member</span><span aria-hidden>·</span>
+          <button onClick={() => switchMode(false)} disabled={switching} className="underline underline-offset-4 font-medium disabled:opacity-60" data-testid="button-switch-back">{switching ? "Switching…" : "Switch back"}</button>
+        </div>
+      </div>}
       <header className="sticky top-0 z-40 border-b bg-background/85 backdrop-blur">
         <div className="max-w-6xl mx-auto px-5 h-16 flex items-center justify-between gap-4">
           <Link href="/" className="flex items-end gap-2" data-testid="link-brand">
@@ -58,6 +68,9 @@ export function AppShell({ children }: { children: ReactNode }) {
             <span className="hidden sm:inline pb-0.5 text-xs uppercase tracking-[0.2em] text-muted-foreground">Lee, Mass.</span>
           </Link>
           <div className="hidden lg:flex items-center gap-3 text-sm">
+            {canViewAsMember && <button onClick={() => switchMode(true)} disabled={switching}
+              className="inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 hover:bg-muted transition-colors disabled:opacity-60"
+              data-testid="button-view-as-member"><Eye className="h-4 w-4" /> {switching ? "Switching…" : "View as member"}</button>}
             <span className="text-muted-foreground" data-testid="text-user-name">{me ? nameOf(me) : ""}</span>
             <button onClick={handleSignOut} disabled={signOut.isPending}
               className="inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 hover:bg-muted transition-colors"
@@ -78,6 +91,9 @@ export function AppShell({ children }: { children: ReactNode }) {
             {links(true)}
             <div className="mt-3 pt-3 border-t flex flex-wrap items-center justify-between gap-3">
               <span className="min-w-0 break-words text-muted-foreground">{me ? nameOf(me) : ""}</span>
+              {canViewAsMember && <button onClick={() => { setOpen(false); void switchMode(true); }} disabled={switching}
+                className="inline-flex shrink-0 items-center gap-1.5 rounded-md border px-3 py-2" data-testid="button-view-as-member-mobile">
+                <Eye className="h-4 w-4" /> View as member</button>}
               <button onClick={handleSignOut} className="inline-flex shrink-0 items-center gap-1.5 rounded-md border px-3 py-2"
                 data-testid="button-sign-out-mobile">
                 <LogOut className="h-4 w-4" /> Sign out

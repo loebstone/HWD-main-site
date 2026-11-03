@@ -8,6 +8,87 @@
 import * as zod from 'zod';
 
 
+export const SetViewAsMemberBody = zod.object({
+  "enabled": zod.boolean()
+})
+
+export const setViewAsMemberResponseViewAsMemberDefault = false;
+
+export const SetViewAsMemberResponse = zod.object({
+  "personId": zod.string(),
+  "displayName": zod.string(),
+  "goesBy": zod.string().nullable(),
+  "role": zod.enum(['member', 'editor', 'admin']),
+  "viewAsMember": zod.boolean().default(setViewAsMemberResponseViewAsMemberDefault),
+  "apps": zod.array(zod.string()).nullish().describe('Null or absent means legacy session; empty array is an explicit lack of tool access')
+})
+
+
+export const getHomeDisplayResponseSlideshowEmbedUrlMax = 2048;
+
+
+
+export const GetHomeDisplayResponse = zod.object({
+  "slideshowEmbedUrl": zod.string().max(getHomeDisplayResponseSlideshowEmbedUrlMax).nullable()
+})
+
+
+export const updateHomeDisplayBodySlideshowEmbedUrlMax = 2048;
+
+
+
+export const UpdateHomeDisplayBody = zod.object({
+  "slideshowEmbedUrl": zod.string().max(updateHomeDisplayBodySlideshowEmbedUrlMax).nullable()
+})
+
+export const updateHomeDisplayResponseSlideshowEmbedUrlMax = 2048;
+
+
+
+export const UpdateHomeDisplayResponse = zod.object({
+  "slideshowEmbedUrl": zod.string().max(updateHomeDisplayResponseSlideshowEmbedUrlMax).nullable()
+})
+
+
+export const getDuesSettingsResponseTextMax = 10000;
+
+
+
+export const GetDuesSettingsResponse = zod.object({
+  "seasonOpen": zod.boolean(),
+  "text": zod.string().max(getDuesSettingsResponseTextMax)
+})
+
+
+export const updateDuesSettingsBodyTextMax = 10000;
+
+
+
+export const UpdateDuesSettingsBody = zod.object({
+  "seasonOpen": zod.boolean(),
+  "text": zod.string().max(updateDuesSettingsBodyTextMax)
+})
+
+export const updateDuesSettingsResponseTextMax = 10000;
+
+
+
+export const UpdateDuesSettingsResponse = zod.object({
+  "seasonOpen": zod.boolean(),
+  "text": zod.string().max(updateDuesSettingsResponseTextMax)
+})
+
+
+export const getDuesResponseTextMax = 10000;
+
+
+
+export const GetDuesResponse = zod.object({
+  "seasonOpen": zod.boolean(),
+  "text": zod.string().max(getDuesResponseTextMax)
+})
+
+
 export const getSuiteMenuResponseItemsItemLabelMax = 100;
 
 export const getSuiteMenuResponseItemsItemHrefMax = 2048;
@@ -234,20 +315,26 @@ export const VerifySignInBody = zod.object({
   "token": zod.string().regex(verifySignInBodyTokenRegExp)
 })
 
+export const verifySignInResponseViewAsMemberDefault = false;
+
 export const VerifySignInResponse = zod.object({
   "personId": zod.string(),
   "displayName": zod.string(),
   "goesBy": zod.string().nullable(),
   "role": zod.enum(['member', 'editor', 'admin']),
+  "viewAsMember": zod.boolean().default(verifySignInResponseViewAsMemberDefault),
   "apps": zod.array(zod.string()).nullish().describe('Null or absent means legacy session; empty array is an explicit lack of tool access')
 })
 
+
+export const getSessionResponseViewAsMemberDefault = false;
 
 export const GetSessionResponse = zod.object({
   "personId": zod.string(),
   "displayName": zod.string(),
   "goesBy": zod.string().nullable(),
   "role": zod.enum(['member', 'editor', 'admin']),
+  "viewAsMember": zod.boolean().default(getSessionResponseViewAsMemberDefault),
   "apps": zod.array(zod.string()).nullish().describe('Null or absent means legacy session; empty array is an explicit lack of tool access')
 })
 
@@ -328,7 +415,48 @@ export const GetHomeResponse = zod.object({
   "id": zod.enum(['calendar', 'roster', 'forecast', 'cap-table']),
   "label": zod.string().min(1).max(getHomeResponseAppsItemLabelMax),
   "url": zod.string().url().max(getHomeResponseAppsItemUrlMax)
-}))
+})),
+  "latestMinutes": zod.union([zod.object({
+  "id": zod.string(),
+  "groupId": zod.string().nullable(),
+  "title": zod.string(),
+  "section": zod.union([zod.literal('shareholders'),zod.literal('directors'),zod.literal('governing'),zod.literal('logging'),zod.literal('photo_archive'),zod.literal(null)]).nullable(),
+  "year": zod.number().int().nullable(),
+  "type": zod.enum(['pdf', 'link']),
+  "externalUrl": zod.string().nullable(),
+  "sortOrder": zod.number().int(),
+  "tags": zod.array(zod.string()),
+  "note": zod.string(),
+  "uploadedBy": zod.string(),
+  "uploadedByName": zod.string(),
+  "uploadedAt": zod.coerce.date(),
+  "retiredAt": zod.coerce.date().nullable(),
+  "replaces": zod.string().nullable()
+}),zod.null()]).optional(),
+  "slideshowEmbedUrl": zod.string().url().nullish(),
+  "familyTime": zod.union([zod.object({
+  "year": zod.number().int(),
+  "slots": zod.array(zod.object({
+  "slotNumber": zod.number().int(),
+  "segmentIndex": zod.number().int(),
+  "familyGroupId": zod.string(),
+  "familyName": zod.string(),
+  "displayColor": zod.string(),
+  "startDate": zod.coerce.date(),
+  "endDate": zod.coerce.date().describe('Exclusive end date'),
+  "isManualOverride": zod.boolean()
+})),
+  "yourFamily": zod.object({
+  "familyGroupId": zod.string(),
+  "familyName": zod.string()
+}).nullable(),
+  "schedulerHref": zod.string()
+}),zod.null()]).optional(),
+  "cards": zod.array(zod.object({
+  "id": zod.string(),
+  "label": zod.string(),
+  "href": zod.string()
+})).optional()
 })
 
 
@@ -888,7 +1016,7 @@ export const listAuditLogQueryPersonIdMax = 100;
 export const ListAuditLogQueryParams = zod.object({
   "page": zod.coerce.number().int().min(1).default(listAuditLogQueryPageDefault),
   "personId": zod.coerce.string().max(listAuditLogQueryPersonIdMax).optional(),
-  "action": zod.enum(['sign-in', 'sign-out', 'document-open', 'document-upload', 'document-replace', 'document-retire', 'document-edit', 'document-move', 'group-create', 'group-edit', 'group-retire', 'home-edit', 'grant-create', 'grant-end', 'announcement-create', 'announcement-edit', 'announcement-retire', 'notice-edit', 'apps-edit', 'menu-edit', 'contact-send', 'contact-settings-edit', 'import']).optional()
+  "action": zod.enum(['sign-in', 'sign-out', 'document-open', 'document-upload', 'document-replace', 'document-retire', 'document-edit', 'document-move', 'group-create', 'group-edit', 'group-retire', 'home-edit', 'grant-create', 'grant-end', 'announcement-create', 'announcement-edit', 'announcement-retire', 'notice-edit', 'apps-edit', 'menu-edit', 'contact-send', 'contact-settings-edit', 'view-as-member-on', 'view-as-member-off', 'dues-settings-edit', 'import']).optional()
 })
 
 export const ListAuditLogResponse = zod.object({
@@ -897,7 +1025,7 @@ export const ListAuditLogResponse = zod.object({
   "at": zod.coerce.date(),
   "actorPersonId": zod.string(),
   "actorName": zod.string(),
-  "action": zod.enum(['sign-in', 'sign-out', 'document-open', 'document-upload', 'document-replace', 'document-retire', 'document-edit', 'document-move', 'group-create', 'group-edit', 'group-retire', 'home-edit', 'grant-create', 'grant-end', 'announcement-create', 'announcement-edit', 'announcement-retire', 'notice-edit', 'apps-edit', 'menu-edit', 'contact-send', 'contact-settings-edit', 'import']),
+  "action": zod.enum(['sign-in', 'sign-out', 'document-open', 'document-upload', 'document-replace', 'document-retire', 'document-edit', 'document-move', 'group-create', 'group-edit', 'group-retire', 'home-edit', 'grant-create', 'grant-end', 'announcement-create', 'announcement-edit', 'announcement-retire', 'notice-edit', 'apps-edit', 'menu-edit', 'contact-send', 'contact-settings-edit', 'view-as-member-on', 'view-as-member-off', 'dues-settings-edit', 'import']),
   "targetId": zod.string().nullable(),
   "description": zod.string(),
   "visitorAddress": zod.string()

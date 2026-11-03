@@ -16,6 +16,8 @@ import DocumentsPage from "@/pages/documents";
 import DocumentGroupPage from "@/pages/document-group";
 import { MeetingsRedirect, ShareholdersRedirect, DirectorsRedirect, LoggingRedirect, GoverningRedirect, PhotoArchiveRedirect } from "@/pages/legacy-redirect";
 import { AdminHomePage } from "@/pages/admin/admin-home";
+import { AdminDuesPage } from "@/pages/admin/admin-dues";
+import DuesPage from "@/pages/dues";
 import ContactPage from "@/pages/contact";
 import { AdminContactPage, AdminSuiteMenuPage } from "@/pages/admin/admin-suite";
 import AnnouncementsPage from "@/pages/announcements";
@@ -51,11 +53,13 @@ function PrivateRoutes() {
             <Route path="/photo-archive" component={PhotoArchiveRedirect} />
             <Route path="/announcements" component={AnnouncementsPage} />
             <Route path="/contact" component={ContactPage} />
+            <Route path="/dues" component={DuesPage} />
             <Route path="/admin"><Redirect to="/admin/documents" /></Route>
             <Route path="/admin/documents" component={admin(AdminDocumentsPage)} />
             <Route path="/admin/announcements" component={admin(AdminAnnouncementsPage)} />
             <Route path="/admin/home-notice" component={admin(AdminHomeNoticePage)} />
             <Route path="/admin/home" component={adminOnly(AdminHomePage)} />
+            <Route path="/admin/dues" component={adminOnly(AdminDuesPage)} />
             <Route path="/admin/apps"><Redirect to="/admin/suite-menu" /></Route>
             <Route path="/admin/suite-menu" component={adminOnly(AdminSuiteMenuPage)} />
             <Route path="/admin/contact" component={adminOnly(AdminContactPage)} />

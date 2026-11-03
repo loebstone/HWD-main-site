@@ -9,6 +9,8 @@ import type { Announcement } from './announcement';
 import type { AppLink } from './appLink';
 import type { Document } from './document';
 import type { DocumentGroup } from './documentGroup';
+import type { FamilyTime } from './familyTime';
+import type { HomeCard } from './homeCard';
 import type { HomeNotice } from './homeNotice';
 
 export interface HomeSummary {
@@ -18,4 +20,9 @@ export interface HomeSummary {
   notice: HomeNotice;
   reminders: Announcement[];
   apps: AppLink[];
+  latestMinutes?: Document | null;
+  /** @nullable */
+  slideshowEmbedUrl?: string | null;
+  familyTime?: FamilyTime | null;
+  cards?: HomeCard[];
 }

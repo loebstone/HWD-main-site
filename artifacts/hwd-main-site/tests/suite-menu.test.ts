@@ -43,6 +43,7 @@ test("logo renders an inline eight-tree mark and HWD Farm wordmark, including la
 });
 test("Home reads its notice from the member-safe Home response, never editor-only settings", async () => {
   const source = await readFile(new URL("../src/pages/home.tsx", import.meta.url), "utf8");
-  assert.match(source, /const notice = home\.data\?\.notice/);
+  assert.match(source, /const d = home\.data/);
+  assert.match(source, /const notice = d\?\.notice\?\.text/);
   assert(!source.includes("useGetHomeNotice"));
 });

@@ -32,5 +32,8 @@ export const AuditAction = {
   'menu-edit': 'menu-edit',
   'contact-send': 'contact-send',
   'contact-settings-edit': 'contact-settings-edit',
+  'view-as-member-on': 'view-as-member-on',
+  'view-as-member-off': 'view-as-member-off',
+  'dues-settings-edit': 'dues-settings-edit',
   import: 'import',
 } as const;

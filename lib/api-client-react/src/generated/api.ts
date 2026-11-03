@@ -38,6 +38,7 @@ import type {
   DocumentGroup,
   DocumentInput,
   DocumentMoveInput,
+  DuesSettings,
   EmailInput,
   FileInput,
   GetRosterEntryParams,
@@ -46,6 +47,7 @@ import type {
   GroupDocuments,
   GroupInput,
   HealthStatus,
+  HomeDisplay,
   HomeGroups,
   HomeNotice,
   HomeNoticeInput,
@@ -54,6 +56,7 @@ import type {
   ListAnnouncementsParams,
   ListAuditLogParams,
   ListDocumentsParams,
+  MemberViewInput,
   Message,
   OldSiteImportInput,
   OldSiteImportRun,
@@ -90,6 +93,537 @@ const withQueryKey = <T extends object, K>(query: T, queryKey: K): T & { queryKe
   }
   return result;
 };
+
+export const getSetViewAsMemberUrl = () => {
+
+
+
+
+  return `/api/auth/view-as-member`
+}
+
+export const setViewAsMember = async (memberViewInput: MemberViewInput, options?: Parameters<typeof customFetch>[1]): Promise<Identity> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<Identity>(getSetViewAsMemberUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(memberViewInput)
+  }
+);}
+
+
+
+
+
+export const getSetViewAsMemberMutationKey = () => ['setViewAsMember'] as const;
+
+export const getSetViewAsMemberMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof setViewAsMember>>, TError,SetViewAsMemberMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof setViewAsMember>>, TError,SetViewAsMemberMutationVariables, TContext> => {
+
+const mutationKey = getSetViewAsMemberMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof setViewAsMember>>, SetViewAsMemberMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  setViewAsMember(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SetViewAsMemberMutationResult = NonNullable<Awaited<ReturnType<typeof setViewAsMember>>>
+    export type SetViewAsMemberMutationBody = BodyType<MemberViewInput>
+    export type SetViewAsMemberMutationError = ErrorType<void>
+    export type SetViewAsMemberMutationVariables = {data: BodyType<MemberViewInput>}
+
+    export const useSetViewAsMember = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof setViewAsMember>>, TError,SetViewAsMemberMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof setViewAsMember>>,
+        TError,
+        SetViewAsMemberMutationVariables,
+        TContext
+      > => {
+      return useMutation(getSetViewAsMemberMutationOptions(options), queryClient);
+    }
+
+export const getGetHomeDisplayUrl = () => {
+
+
+
+
+  return `/api/admin/home-display`
+}
+
+export const getHomeDisplay = async ( options?: Parameters<typeof customFetch>[1]): Promise<HomeDisplay> => {
+
+  return customFetch<HomeDisplay>(getGetHomeDisplayUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetHomeDisplayQueryKey = () => {
+    return [
+    `/api/admin/home-display`
+    ] as const;
+    }
+
+
+export const getGetHomeDisplayQueryOptions = <TData = Awaited<ReturnType<typeof getHomeDisplay>>, TError = ErrorType<unknown>>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getHomeDisplay>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetHomeDisplayQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getHomeDisplay>>> = ({ signal }) => getHomeDisplay({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getHomeDisplay>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetHomeDisplayQueryResult = NonNullable<Awaited<ReturnType<typeof getHomeDisplay>>>
+export type GetHomeDisplayQueryError = ErrorType<unknown>
+
+
+export function useGetHomeDisplay<TData = Awaited<ReturnType<typeof getHomeDisplay>>, TError = ErrorType<unknown>>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getHomeDisplay>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getHomeDisplay>>,
+          TError,
+          Awaited<ReturnType<typeof getHomeDisplay>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetHomeDisplay<TData = Awaited<ReturnType<typeof getHomeDisplay>>, TError = ErrorType<unknown>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getHomeDisplay>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getHomeDisplay>>,
+          TError,
+          Awaited<ReturnType<typeof getHomeDisplay>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetHomeDisplay<TData = Awaited<ReturnType<typeof getHomeDisplay>>, TError = ErrorType<unknown>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getHomeDisplay>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useGetHomeDisplay<TData = Awaited<ReturnType<typeof getHomeDisplay>>, TError = ErrorType<unknown>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getHomeDisplay>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetHomeDisplayQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getUpdateHomeDisplayUrl = () => {
+
+
+
+
+  return `/api/admin/home-display`
+}
+
+export const updateHomeDisplay = async (homeDisplay: HomeDisplay, options?: Parameters<typeof customFetch>[1]): Promise<HomeDisplay> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<HomeDisplay>(getUpdateHomeDisplayUrl(),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(homeDisplay)
+  }
+);}
+
+
+
+
+
+export const getUpdateHomeDisplayMutationKey = () => ['updateHomeDisplay'] as const;
+
+export const getUpdateHomeDisplayMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateHomeDisplay>>, TError,UpdateHomeDisplayMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateHomeDisplay>>, TError,UpdateHomeDisplayMutationVariables, TContext> => {
+
+const mutationKey = getUpdateHomeDisplayMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateHomeDisplay>>, UpdateHomeDisplayMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  updateHomeDisplay(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateHomeDisplayMutationResult = NonNullable<Awaited<ReturnType<typeof updateHomeDisplay>>>
+    export type UpdateHomeDisplayMutationBody = BodyType<HomeDisplay>
+    export type UpdateHomeDisplayMutationError = ErrorType<unknown>
+    export type UpdateHomeDisplayMutationVariables = {data: BodyType<HomeDisplay>}
+
+    export const useUpdateHomeDisplay = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateHomeDisplay>>, TError,UpdateHomeDisplayMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof updateHomeDisplay>>,
+        TError,
+        UpdateHomeDisplayMutationVariables,
+        TContext
+      > => {
+      return useMutation(getUpdateHomeDisplayMutationOptions(options), queryClient);
+    }
+
+export const getGetDuesSettingsUrl = () => {
+
+
+
+
+  return `/api/admin/dues`
+}
+
+export const getDuesSettings = async ( options?: Parameters<typeof customFetch>[1]): Promise<DuesSettings> => {
+
+  return customFetch<DuesSettings>(getGetDuesSettingsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetDuesSettingsQueryKey = () => {
+    return [
+    `/api/admin/dues`
+    ] as const;
+    }
+
+
+export const getGetDuesSettingsQueryOptions = <TData = Awaited<ReturnType<typeof getDuesSettings>>, TError = ErrorType<unknown>>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getDuesSettings>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetDuesSettingsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getDuesSettings>>> = ({ signal }) => getDuesSettings({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getDuesSettings>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetDuesSettingsQueryResult = NonNullable<Awaited<ReturnType<typeof getDuesSettings>>>
+export type GetDuesSettingsQueryError = ErrorType<unknown>
+
+
+export function useGetDuesSettings<TData = Awaited<ReturnType<typeof getDuesSettings>>, TError = ErrorType<unknown>>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getDuesSettings>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getDuesSettings>>,
+          TError,
+          Awaited<ReturnType<typeof getDuesSettings>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetDuesSettings<TData = Awaited<ReturnType<typeof getDuesSettings>>, TError = ErrorType<unknown>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getDuesSettings>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getDuesSettings>>,
+          TError,
+          Awaited<ReturnType<typeof getDuesSettings>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetDuesSettings<TData = Awaited<ReturnType<typeof getDuesSettings>>, TError = ErrorType<unknown>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getDuesSettings>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useGetDuesSettings<TData = Awaited<ReturnType<typeof getDuesSettings>>, TError = ErrorType<unknown>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getDuesSettings>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetDuesSettingsQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getUpdateDuesSettingsUrl = () => {
+
+
+
+
+  return `/api/admin/dues`
+}
+
+export const updateDuesSettings = async (duesSettings: DuesSettings, options?: Parameters<typeof customFetch>[1]): Promise<DuesSettings> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<DuesSettings>(getUpdateDuesSettingsUrl(),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(duesSettings)
+  }
+);}
+
+
+
+
+
+export const getUpdateDuesSettingsMutationKey = () => ['updateDuesSettings'] as const;
+
+export const getUpdateDuesSettingsMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateDuesSettings>>, TError,UpdateDuesSettingsMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateDuesSettings>>, TError,UpdateDuesSettingsMutationVariables, TContext> => {
+
+const mutationKey = getUpdateDuesSettingsMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateDuesSettings>>, UpdateDuesSettingsMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  updateDuesSettings(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateDuesSettingsMutationResult = NonNullable<Awaited<ReturnType<typeof updateDuesSettings>>>
+    export type UpdateDuesSettingsMutationBody = BodyType<DuesSettings>
+    export type UpdateDuesSettingsMutationError = ErrorType<unknown>
+    export type UpdateDuesSettingsMutationVariables = {data: BodyType<DuesSettings>}
+
+    export const useUpdateDuesSettings = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateDuesSettings>>, TError,UpdateDuesSettingsMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof updateDuesSettings>>,
+        TError,
+        UpdateDuesSettingsMutationVariables,
+        TContext
+      > => {
+      return useMutation(getUpdateDuesSettingsMutationOptions(options), queryClient);
+    }
+
+export const getGetDuesUrl = () => {
+
+
+
+
+  return `/api/dues`
+}
+
+export const getDues = async ( options?: Parameters<typeof customFetch>[1]): Promise<DuesSettings> => {
+
+  return customFetch<DuesSettings>(getGetDuesUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetDuesQueryKey = () => {
+    return [
+    `/api/dues`
+    ] as const;
+    }
+
+
+export const getGetDuesQueryOptions = <TData = Awaited<ReturnType<typeof getDues>>, TError = ErrorType<unknown>>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getDues>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetDuesQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getDues>>> = ({ signal }) => getDues({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getDues>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetDuesQueryResult = NonNullable<Awaited<ReturnType<typeof getDues>>>
+export type GetDuesQueryError = ErrorType<unknown>
+
+
+export function useGetDues<TData = Awaited<ReturnType<typeof getDues>>, TError = ErrorType<unknown>>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getDues>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getDues>>,
+          TError,
+          Awaited<ReturnType<typeof getDues>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetDues<TData = Awaited<ReturnType<typeof getDues>>, TError = ErrorType<unknown>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getDues>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getDues>>,
+          TError,
+          Awaited<ReturnType<typeof getDues>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetDues<TData = Awaited<ReturnType<typeof getDues>>, TError = ErrorType<unknown>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getDues>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useGetDues<TData = Awaited<ReturnType<typeof getDues>>, TError = ErrorType<unknown>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getDues>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetDuesQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
 
 export const getGetSuiteMenuUrl = () => {
 

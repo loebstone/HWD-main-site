@@ -26,6 +26,7 @@ test("publish SQL applies to populated legacy tables before startup; all documen
     await target.query(`ALTER TABLE site_documents ADD CONSTRAINT site_document_year
       CHECK (section NOT IN ('shareholders','directors') OR year IS NOT NULL)`);
     await target.query("ALTER TABLE site_sessions DROP COLUMN roster_apps");
+    await target.query("ALTER TABLE site_sessions DROP COLUMN view_as_member");
     for (let i = 0; i < 30; i++) {
       await target.query(`INSERT INTO site_documents
         (id,title,section,year,type,storage_key,external_url,uploaded_by,uploaded_by_name,retired_at,legacy_sheet_id,note,tags)
@@ -48,8 +49,8 @@ test("publish SQL applies to populated legacy tables before startup; all documen
     const snapshot = async () => {
       const result: Record<string, unknown> = {};
       for (const table of tables) {
-        result[table] = (await target.query(`SELECT to_jsonb(t)-'group_id'-'roster_apps' AS row
-          FROM "${table}" t ORDER BY (to_jsonb(t)-'group_id'-'roster_apps')::text`)).rows;
+        result[table] = (await target.query(`SELECT to_jsonb(t)-'group_id'-'roster_apps'-'view_as_member' AS row
+          FROM "${table}" t ORDER BY (to_jsonb(t)-'group_id'-'roster_apps'-'view_as_member')::text`)).rows;
       }
       return result;
     };
@@ -63,6 +64,7 @@ test("publish SQL applies to populated legacy tables before startup; all documen
     assert(!/ADD CONSTRAINT "site_live_document_group"/.test(sql));
     // Only adapt the explicit production schema qualifier to the isolated one.
     await target.query(sql.replaceAll('"public".', `"${isolated}".`));
+    assert.equal((await target.query("SELECT view_as_member FROM site_sessions")).rows[0].view_as_member, false);
     assert.equal((await target.query("SELECT count(*)::int AS n FROM site_documents WHERE group_id IS NULL")).rows[0].n, 30);
     assert.deepEqual(await snapshot(), before);
     // Exact startup ordering: protections, then transactional data backfill.

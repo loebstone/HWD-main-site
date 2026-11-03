@@ -1,100 +1,71 @@
 import { useEffect, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { useGetHomeGroups, useListDocumentGroups, useUpdateHomeGroups } from "@workspace/api-client-react";
-import { ArrowDown, ArrowUp, Check, Lock } from "lucide-react";
+import { getGetHomeDisplayQueryKey, getGetHomeQueryKey, useGetHomeDisplay, useUpdateHomeDisplay } from "@workspace/api-client-react";
 import { PageHeader } from "@/components/page-header";
 import { AdminTabs } from "@/components/admin/admin-tabs";
 import { ErrorState, ListSkeleton } from "@/components/states";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { errorMessage } from "@/lib/session";
-import { invalidateDocs } from "@/lib/invalidate";
-import { cn } from "@/lib/utils";
-
-const MAX = 4;
 
 export function AdminHomePage() {
   const qc = useQueryClient();
   const { toast } = useToast();
-  const groups = useListDocumentGroups();
-  const home = useGetHomeGroups();
-  const save = useUpdateHomeGroups();
-  const [picked, setPicked] = useState<string[]>([]);
-  const inited = useRef(false);
+  const display = useGetHomeDisplay();
+  const save = useUpdateHomeDisplay();
+  const [url, setUrl] = useState("");
+  const saved = useRef<string | null>(null);
+  const dirty = saved.current !== null && url.trim() !== saved.current;
+  const invalid = !!url.trim() && !/^https:\/\//i.test(url.trim());
 
   useEffect(() => {
-    if (home.data && !inited.current) { inited.current = true; setPicked(home.data.groupIds); }
-  }, [home.data]);
+    if (!display.data) return;
+    if (saved.current !== null && url.trim() !== saved.current) return;
+    saved.current = display.data.slideshowEmbedUrl ?? "";
+    setUrl(saved.current);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [display.data]);
 
-  const byId = new Map((groups.data ?? []).map((g) => [g.id, g]));
-  const live = picked.filter((id) => byId.has(id));
-  const dirty = JSON.stringify(live) !== JSON.stringify((home.data?.groupIds ?? []).filter((id) => byId.has(id)));
+  useEffect(() => {
+    if (!dirty) return;
+    const h = (e: BeforeUnloadEvent) => { e.preventDefault(); };
+    window.addEventListener("beforeunload", h);
+    return () => window.removeEventListener("beforeunload", h);
+  }, [dirty]);
 
-  function toggle(id: string) {
-    setPicked((p) => p.includes(id) ? p.filter((x) => x !== id) : p.length >= MAX ? p : [...p, id]);
-  }
-  function shift(i: number, d: -1 | 1) {
-    setPicked(() => { const n = [...live]; [n[i], n[i + d]] = [n[i + d], n[i]]; return n; });
-  }
   async function submit() {
+    const v = url.trim();
     try {
-      await save.mutateAsync({ data: { groupIds: live } });
-      inited.current = false;
-      await invalidateDocs(qc);
-      toast({ title: "Home page updated", description: live.length ? `${live.length} quick access ${live.length === 1 ? "card" : "cards"}` : "Quick access cards hidden" });
+      const res = await save.mutateAsync({ data: { slideshowEmbedUrl: v ? v : null } });
+      saved.current = res.slideshowEmbedUrl ?? "";
+      setUrl(saved.current);
+      await Promise.all([qc.invalidateQueries({ queryKey: getGetHomeDisplayQueryKey() }), qc.invalidateQueries({ queryKey: getGetHomeQueryKey() })]);
+      toast({ title: "Home page updated", description: saved.current ? "Slideshow will show on Home." : "Slideshow hidden." });
     } catch (err) {
-      toast({ title: "Couldn't save", description: errorMessage(err, "Please try again."), variant: "destructive" });
+      toast({ title: "Couldn't save", description: errorMessage(err, "Please check the link and try again."), variant: "destructive" });
     }
   }
 
   return (
     <div>
-      <PageHeader eyebrow="Administration" title="Home" intro={`Pick up to ${MAX} document groups to feature as quick access cards on the family home page.`} />
+      <PageHeader eyebrow="Administration" title="Home" intro="Set the slideshow shown on the family home page, below announcements. Leave empty to hide it." />
       <AdminTabs />
-      {groups.isLoading || home.isLoading ? <ListSkeleton rows={4} /> :
-        groups.isError || home.isError ? <ErrorState onRetry={() => { void groups.refetch(); void home.refetch(); }} /> :
-        <div className="grid lg:grid-cols-[1fr_20rem] gap-6 items-start">
-          <section className="rounded-2xl border bg-card p-4 md:p-6">
-            <div className="flex items-baseline justify-between gap-3 mb-4">
-              <h2 className="text-2xl leading-snug">Groups</h2>
-              <span className="text-sm text-muted-foreground tabular-nums" data-testid="text-picked-count">{live.length} of {MAX} chosen</span>
-            </div>
-            {!groups.data?.length ? <p className="text-muted-foreground">There are no groups yet. Create some under Documents.</p> :
-              <ul className="space-y-2">
-                {groups.data.map((g) => {
-                  const on = live.includes(g.id);
-                  const full = !on && live.length >= MAX;
-                  return <li key={g.id}>
-                    <button type="button" onClick={() => toggle(g.id)} disabled={full} aria-pressed={on}
-                      className={cn("w-full flex items-center gap-3 rounded-xl border px-4 py-3 text-left transition-all",
-                        on ? "border-primary/50 bg-secondary/60" : "bg-background/40 hover:border-primary/30", full && "opacity-45 cursor-not-allowed")}
-                      data-testid={`button-pick-group-${g.id}`}>
-                      <span className={cn("grid h-5 w-5 shrink-0 place-items-center rounded border transition-colors", on ? "bg-primary border-primary text-primary-foreground" : "bg-card")}>
-                        {on && <Check className="h-3.5 w-3.5" />}
-                      </span>
-                      <span className="min-w-0 flex-1">
-                        <span className="block font-medium break-words">{g.name}</span>
-                        <span className="block text-sm text-muted-foreground">{g.documentCount} documents{g.visibility === "staff" && <> · <Lock className="inline h-3 w-3" /> staff only</>}</span>
-                      </span>
-                    </button>
-                  </li>;
-                })}
-              </ul>}
-          </section>
-          <aside className="rounded-2xl border bg-card p-4 md:p-6 lg:sticky lg:top-32">
-            <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Order on home</p>
-            {!live.length ? <p className="mt-3 text-muted-foreground" data-testid="text-no-picks">None chosen. The quick access cards won't show.</p> :
-              <ol className="mt-3 space-y-2">
-                {live.map((id, i) => <li key={id} className="flex items-center gap-2 rounded-lg border bg-background/40 px-3 py-2" data-testid={`row-picked-${id}`}>
-                  <span className="w-5 text-sm text-muted-foreground tabular-nums">{i + 1}</span>
-                  <span className="min-w-0 flex-1 truncate">{byId.get(id)?.name}</span>
-                  <button type="button" aria-label="Move up" disabled={i === 0} onClick={() => shift(i, -1)} className="rounded p-1 text-muted-foreground hover:bg-muted disabled:opacity-30" data-testid={`button-picked-up-${id}`}><ArrowUp className="h-4 w-4" /></button>
-                  <button type="button" aria-label="Move down" disabled={i === live.length - 1} onClick={() => shift(i, 1)} className="rounded p-1 text-muted-foreground hover:bg-muted disabled:opacity-30" data-testid={`button-picked-down-${id}`}><ArrowDown className="h-4 w-4" /></button>
-                </li>)}
-              </ol>}
-            <Button className="mt-5 w-full" onClick={submit} disabled={!dirty || save.isPending} data-testid="button-save-home-groups">{save.isPending ? "Saving…" : dirty ? "Save home page" : "Saved"}</Button>
-          </aside>
-        </div>}
+      {display.isLoading ? <ListSkeleton rows={2} /> : display.isError ? <ErrorState onRetry={() => display.refetch()} /> :
+        <section className="max-w-2xl rounded-2xl border bg-card p-5 md:p-6 space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="slideshow-url">Slideshow embed URL</Label>
+            <Input id="slideshow-url" type="url" inputMode="url" maxLength={2048} placeholder="https://photos.smugmug.com/frame/..." value={url} onChange={(e) => setUrl(e.target.value)} data-testid="input-slideshow-url" />
+            <p className="text-sm text-muted-foreground">Use an HTTPS embed URL on a SmugMug subdomain. Leave empty to hide the slideshow.</p>
+            {invalid && <p className="text-sm text-destructive" data-testid="text-slideshow-invalid">The link must start with https://</p>}
+          </div>
+          <div className="flex flex-wrap items-center gap-3">
+            <Button onClick={submit} disabled={!dirty || invalid || save.isPending} data-testid="button-save-home-display">{save.isPending ? "Saving…" : dirty ? "Save home page" : "Saved"}</Button>
+            {!!saved.current && <Button variant="outline" onClick={() => setUrl("")} disabled={save.isPending} data-testid="button-clear-slideshow">Remove slideshow</Button>}
+            {dirty && <span className="text-sm text-primary" data-testid="text-home-unsaved">Unsaved changes</span>}
+          </div>
+        </section>}
     </div>
   );
 }

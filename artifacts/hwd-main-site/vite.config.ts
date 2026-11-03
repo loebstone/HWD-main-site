@@ -37,7 +37,7 @@ export default defineConfig({
       name: 'hwd-security-headers',
       configureServer(server) {
         server.middlewares.use((_req, res, next) => {
-          res.setHeader('Content-Security-Policy', `default-src 'self'; script-src 'self' 'nonce-${cspNonce}'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; connect-src 'self' ws: wss:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'self' https://replit.com https://*.replit.dev`);
+          res.setHeader('Content-Security-Policy', `default-src 'self'; script-src 'self' 'nonce-${cspNonce}'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; connect-src 'self' ws: wss:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'self' https://replit.com https://*.replit.dev; frame-src 'self' https://*.smugmug.com`);
           res.setHeader('Referrer-Policy', 'no-referrer');
           res.setHeader('X-Content-Type-Options', 'nosniff');
           res.setHeader('Cache-Control', 'no-store');
@@ -91,7 +91,7 @@ export default defineConfig({
   },
   preview: {
     headers: {
-      'Content-Security-Policy': "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'self'",
+      'Content-Security-Policy': "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'self'; frame-src 'self' https://*.smugmug.com",
       'Referrer-Policy': 'no-referrer',
       'X-Content-Type-Options': 'nosniff',
       'Cache-Control': 'no-store',

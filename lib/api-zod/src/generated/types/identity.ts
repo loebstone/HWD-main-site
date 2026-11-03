@@ -13,6 +13,7 @@ export interface Identity {
   /** @nullable */
   goesBy: string | null;
   role: IdentityRole;
+  viewAsMember?: boolean;
   /**
      * Null or absent means legacy session; empty array is an explicit lack of tool access
      * @nullable

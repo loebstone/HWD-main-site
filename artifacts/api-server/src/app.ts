@@ -3,7 +3,7 @@ import pinoHttp from "pino-http";
 import cookieParser from "cookie-parser";
 import helmet from "helmet";
 import { ZodError } from "zod";
-import { desc, isNull, sql } from "drizzle-orm";
+import { asc, desc, inArray, isNull, sql } from "drizzle-orm";
 import { documents } from "@workspace/db";
 import { logger } from "./lib/logger";
 import { defaultServices, type Services } from "./lib/services";
@@ -25,7 +25,11 @@ import { getFeaturedGroupIds, GroupError, legacyGroupLocation, listGroups, visib
 import { and } from "drizzle-orm";
 import { adminSuiteMenuRoutes, publicSuiteMenuRoutes } from "./routes/suite-menu";
 import { adminContactRoutes, contactRoutes } from "./routes/contact";
-import { toolAllowed } from "./lib/suite-menu";
+import { getSuiteMenu, toolAllowed } from "./lib/suite-menu";
+import { getDuesSettings, getHomeDisplay } from "./lib/home-display";
+import { getFamilyTime } from "./lib/family-time";
+import { DEFAULT_GROUPS } from "./migrate-document-groups";
+import { adminDuesRoutes, duesRoutes, homeDisplayRoutes } from "./routes/home-display";
 
 export function createApp(services: Partial<Services> = {}): Express {
   const s = { ...defaultServices, ...services };
@@ -68,6 +72,9 @@ export function createApp(services: Partial<Services> = {}): Express {
   app.use("/api/groups", groupRoutes(s));
   app.use("/api/admin/groups", adminGroupRoutes(s));
   app.use("/api/admin/home", homeGroupSettingsRoutes(s));
+  app.use("/api/admin/home-display", homeDisplayRoutes(s));
+  app.use("/api/admin/dues", adminDuesRoutes(s));
+  app.use("/api/dues", duesRoutes(s));
   app.use("/api/admin/grants", grantRoutes(s));
   app.use("/api/admin/audit", auditRoutes(s));
   app.use("/api/admin/old-site-import", oldSiteImportRoutes(s));
@@ -79,13 +86,30 @@ export function createApp(services: Partial<Services> = {}): Express {
     const groups = await listGroups(s, req.siteIdentity!.role);
     const featuredIds = await getFeaturedGroupIds(s);
     const featuredGroups = featuredIds.flatMap(id => groups.find(g => g.id === id) ?? []);
-    const [notice, reminders, allApps] = await Promise.all([
+    const [notice, reminders, allApps, menu, display, dues, minutes] = await Promise.all([
       getHomeNotice(s), listAnnouncements(s, { placement: "reminders" }), getAppLinks(s),
+      getSuiteMenu(s), getHomeDisplay(s), getDuesSettings(s),
+      s.db.select().from(documents).where(and(visible, inArray(documents.groupId, DEFAULT_GROUPS.slice(0, 2).map(g => g.id))))
+        .orderBy(desc(documents.uploadedAt), asc(documents.title)).limit(1),
     ]);
     const apps = allApps.filter(app => app.id === "calendar" || app.id === "roster"
       || toolAllowed(req.siteIdentity!, app.id === "cap-table" ? "captable" : app.id));
+    const cardItems = [
+      { id: "scheduler", label: "Scheduler" }, { id: "directory", label: "Family Directory" },
+      { id: "documents", label: "Documents" }, { id: "contact", label: "Contact" },
+    ];
+    const cards = cardItems.map(card => ({ ...card, href: menu.items.find(item => item.id === card.id)!.href }));
+    for (const tool of menu.tools) {
+      if (req.siteIdentity!.apps?.includes(tool.id) ||
+        (tool.id === "captable" && req.siteIdentity!.apps?.includes("cap-table"))) cards.push(tool);
+    }
+    if (dues.seasonOpen) cards.push({ id: "dues", label: "Pay your dues", href: "/dues" });
+    const familyTime = await getFamilyTime(s, req.siteSession!.email, req.siteIdentity!.personId,
+      menu.items.find(item => item.id === "scheduler")!.href);
     res.json({ documentCount: count?.value ?? 0, recentDocuments: recent.map(publicDocument),
-      notice, reminders: reminders.slice(0, 5), apps, featuredGroups });
+      notice, reminders: reminders.slice(0, 5), apps, featuredGroups,
+      latestMinutes: minutes[0] ? publicDocument(minutes[0]) : null,
+      slideshowEmbedUrl: display.slideshowEmbedUrl, familyTime, cards });
   });
   app.use((_req, res) => { res.status(404).json({ error: "Not found" }); });
   const errorHandler: ErrorRequestHandler = (error, req, res, _next) => {
