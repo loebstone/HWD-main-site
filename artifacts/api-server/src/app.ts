@@ -3,7 +3,7 @@ import pinoHttp from "pino-http";
 import cookieParser from "cookie-parser";
 import helmet from "helmet";
 import { ZodError } from "zod";
-import { asc, desc, inArray, isNull, sql } from "drizzle-orm";
+import { asc, desc, eq, inArray, isNull, sql } from "drizzle-orm";
 import { documents } from "@workspace/db";
 import { logger } from "./lib/logger";
 import { defaultServices, type Services } from "./lib/services";
@@ -95,6 +95,14 @@ export function createApp(services: Partial<Services> = {}): Express {
     ]);
     const apps = allApps.filter(app => app.id === "calendar" || app.id === "roster"
       || toolAllowed(req.siteIdentity!, app.id === "cap-table" ? "captable" : app.id));
+    let featuredLine = null;
+    if (display.featuredLineMode === "automatic" && minutes[0]) {
+      featuredLine = { label: "Latest minutes:", document: publicDocument(minutes[0]) };
+    } else if (display.featuredLineMode === "chosen" && display.featuredDocumentId) {
+      const [chosen] = await s.db.select().from(documents)
+        .where(and(visible, eq(documents.id, display.featuredDocumentId))).limit(1);
+      if (chosen) featuredLine = { label: display.featuredLabel || "Featured:", document: publicDocument(chosen) };
+    }
     const cardItems = [
       { id: "scheduler", label: "Scheduler" }, { id: "directory", label: "Family Directory" },
       { id: "documents", label: "Documents" }, { id: "contact", label: "Contact" },
@@ -108,7 +116,7 @@ export function createApp(services: Partial<Services> = {}): Express {
     const familyTime = await getFamilyTime(s, menu.items.find(item => item.id === "scheduler")!.href);
     res.json({ documentCount: count?.value ?? 0, recentDocuments: recent.map(publicDocument),
       notice, reminders: reminders.slice(0, 5), apps, featuredGroups,
-      latestMinutes: minutes[0] ? publicDocument(minutes[0]) : null,
+      latestMinutes: minutes[0] ? publicDocument(minutes[0]) : null, featuredLine,
       slideshowEmbedUrl: display.slideshowEmbedUrl, familyTime, cards });
   });
   app.use((_req, res) => { res.status(404).json({ error: "Not found" }); });

@@ -14,11 +14,18 @@ export const homeDisplayInput = z.object({
           && (url.hostname === "smugmug.com" || url.hostname.endsWith(".smugmug.com"));
       } catch { return false; }
     }, SLIDESHOW_URL_MESSAGE),
-}).strict();
+  featuredLineMode: z.enum(["automatic", "chosen", "none"]).default("automatic"),
+  featuredDocumentId: z.string().uuid().nullable().default(null),
+  featuredLabel: z.string().trim().max(100).default("Featured:"),
+}).strict().superRefine((value, ctx) => {
+  if (value.featuredLineMode === "chosen" && !value.featuredDocumentId) {
+    ctx.addIssue({ code: "custom", path: ["featuredDocumentId"], message: "Choose a live document for the featured line." });
+  }
+});
 export const duesInput = z.object({ seasonOpen: z.boolean(), text: z.string().max(10_000) }).strict();
 export async function getHomeDisplay(s: Services) {
   const [row] = await s.db.select().from(siteSettings).where(eq(siteSettings.key, "home-display"));
-  return row ? homeDisplayInput.parse(row.value) : { slideshowEmbedUrl: null };
+  return homeDisplayInput.parse(row ? row.value : { slideshowEmbedUrl: null });
 }
 export async function getDuesSettings(s: Services) {
   const [row] = await s.db.select().from(siteSettings).where(eq(siteSettings.key, "dues"));

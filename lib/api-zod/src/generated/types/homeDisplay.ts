@@ -5,6 +5,7 @@
  * HWD Main Site private family API
  * OpenAPI spec version: 1.0.0
  */
+import type { HomeDisplayFeaturedLineMode } from './homeDisplayFeaturedLineMode';
 
 export interface HomeDisplay {
   /**
@@ -12,4 +13,9 @@ export interface HomeDisplay {
      * @nullable
      */
   slideshowEmbedUrl: string | null;
+  featuredLineMode?: HomeDisplayFeaturedLineMode;
+  /** @nullable */
+  featuredDocumentId?: string | null;
+  /** @maxLength 100 */
+  featuredLabel?: string;
 }

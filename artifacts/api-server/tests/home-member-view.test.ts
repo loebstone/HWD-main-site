@@ -262,6 +262,8 @@ test("Home and member-view: isolated synthetic development records", async t => 
       const home = await request(app).get("/api/home").set("Cookie", member.cookie).expect(200);
       assert.equal(home.body.latestMinutes.id, latest.id);
       assert.equal(home.body.latestMinutes.storageKey, undefined);
+      assert.equal(home.body.featuredLine.label, "Latest minutes:");
+      assert.equal(home.body.featuredLine.document.id, latest.id);
       await db.update(documentGroups).set({ visibility: "staff" }).where(eq(documentGroups.id, DEFAULT_GROUPS[1].id));
       const filtered = await request(app).get("/api/home").set("Cookie", member.cookie).expect(200);
       assert.equal(filtered.body.latestMinutes.title, "Synthetic older minutes");
@@ -270,6 +272,43 @@ test("Home and member-view: isolated synthetic development records", async t => 
         sortOrder: 20, createdBy: admin.personId }).returning();
       staffGroupId = staff!.id;
       staffDocId = (await insert(staffGroupId, "Synthetic staff secret", now)).id;
+    });
+    await t.test("Featured line defaults Automatic; chosen label/document and None persist, with server visibility and live validation", async () => {
+      const [chosen] = await db.select().from(documents).where(eq(documents.title, "Synthetic newer governing record"));
+      const put = (body: object) => request(app).put("/api/admin/home-display").set("Cookie", admin.cookie).send(body);
+      const home = (cookie = member.cookie) => request(app).get("/api/home").set("Cookie", cookie).expect(200);
+      await request(app).get("/api/admin/home-display").set("Cookie", admin.cookie)
+        .expect(200).expect(r => assert.equal(r.body.featuredLineMode, "automatic"));
+      assert.equal((await home()).body.featuredLine.label, "Latest minutes:");
+      await put({ featuredLineMode: "chosen", featuredDocumentId: null }).expect(400);
+      await put({ featuredLineMode: "chosen", featuredDocumentId: randomUUID() }).expect(400);
+      const [retired] = await db.select().from(documents).where(eq(documents.title, "Synthetic retired minutes"));
+      await put({ featuredLineMode: "chosen", featuredDocumentId: retired.id }).expect(400);
+      await put({ featuredLineMode: "chosen", featuredDocumentId: chosen.id }).expect(200);
+      let response = await home();
+      assert.equal(response.body.featuredLine.label, "Featured:");
+      assert.equal(response.body.featuredLine.document.id, chosen.id);
+      assert.equal(response.body.featuredLine.document.storageKey, undefined);
+      await put({ featuredLabel: "Please read:" }).expect(200);
+      assert.equal((await home()).body.featuredLine.label, "Please read:");
+      await put({ featuredLabel: " " }).expect(200);
+      assert.equal((await home()).body.featuredLine.label, "Featured:");
+      await put({ featuredDocumentId: staffDocId }).expect(200);
+      assert.equal((await home()).body.featuredLine, null);
+      assert(!JSON.stringify((await home()).body).includes(staffDocId));
+      assert.equal((await home(admin.cookie)).body.featuredLine.document.id, staffDocId);
+      await put({ featuredDocumentId: chosen.id }).expect(200);
+      await db.update(documents).set({ retiredAt: now }).where(eq(documents.id, chosen.id));
+      assert.equal((await home()).body.featuredLine, null);
+      await db.update(documents).set({ retiredAt: null }).where(eq(documents.id, chosen.id));
+      await put({ featuredLineMode: "none" }).expect(200);
+      assert.equal((await home()).body.featuredLine, null);
+      await put({ slideshowEmbedUrl: null }).expect(200);
+      assert.equal((await home()).body.featuredLine, null); // Legacy slideshow-only edits preserve the chosen mode.
+      await put({ featuredLineMode: "automatic" }).expect(200);
+      assert.equal((await home()).body.featuredLine.label, "Latest minutes:");
+      const entries = await db.select().from(auditLog).where(eq(auditLog.action, "home-edit"));
+      assert(entries.some(entry => entry.targetId === "home-display" && entry.actorPersonId === admin.personId));
     });
     await t.test("member view persists server-side, refuses every staff route, hides staff data and restores access with audit", async () => {
       await request(app).post("/api/auth/view-as-member").set("Cookie", admin.cookie)

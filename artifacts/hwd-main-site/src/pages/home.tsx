@@ -48,11 +48,11 @@ export default function HomePage() {
   const img = `${import.meta.env.BASE_URL}images/hwd-farm-illustration.jpg`;
   const notice = d?.notice?.text;
   const reminders = d?.reminders ?? [];
-  const minutes = d?.latestMinutes ?? null;
+  const featuredLine = d?.featuredLine ?? null;
   const familyTime = d?.familyTime ?? null;
   const slideshow = d?.slideshowEmbedUrl?.trim() || null;
   const cards = d?.cards ?? [];
-  const hasAnnouncements = !!(minutes || notice || reminders.length || familyTime);
+  const hasAnnouncements = !!(featuredLine || notice || reminders.length || familyTime);
 
   return (
     <div className="space-y-10 md:space-y-12">
@@ -74,11 +74,11 @@ export default function HomePage() {
           home.isError ? <ErrorState onRetry={() => home.refetch()} /> :
           !hasAnnouncements ? <p className="text-muted-foreground" data-testid="empty-announcements">Nothing new right now.</p> :
           <div className="space-y-5">
-            {minutes && <p className="flex items-start gap-2 text-lg" data-testid="text-latest-minutes">
+            {featuredLine && <p className="flex items-start gap-2 text-lg" data-testid="text-latest-minutes">
               <FileText className="mt-1 h-5 w-5 shrink-0 text-primary" />
-              <span className="min-w-0 break-words">Latest minutes:{" "}
-                <a href={openUrl(minutes.id)} target="_blank" rel="noopener noreferrer" className="text-primary underline underline-offset-4" data-testid="link-latest-minutes">
-                  {minutes.title}<ArrowUpRight className="ml-0.5 inline h-4 w-4" /></a></span>
+              <span className="min-w-0 break-words">{featuredLine.label}{" "}
+                <a href={openUrl(featuredLine.document.id)} target="_blank" rel="noopener noreferrer" className="text-primary underline underline-offset-4" data-testid="link-latest-minutes">
+                  {featuredLine.document.title}<ArrowUpRight className="ml-0.5 inline h-4 w-4" /></a></span>
             </p>}
             {notice && <div className="rounded-xl border-l-4 border-primary bg-accent/50 px-5 py-4" data-testid="notice-home"><NoticeText text={notice} /></div>}
             {!!reminders.length && <div className="space-y-3" data-testid="list-reminders">

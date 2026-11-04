@@ -10,6 +10,7 @@ import type { AppLink } from './appLink';
 import type { Document } from './document';
 import type { DocumentGroup } from './documentGroup';
 import type { FamilyTime } from './familyTime';
+import type { FeaturedLine } from './featuredLine';
 import type { HomeCard } from './homeCard';
 import type { HomeNotice } from './homeNotice';
 
@@ -21,6 +22,7 @@ export interface HomeSummary {
   reminders: Announcement[];
   apps: AppLink[];
   latestMinutes?: Document | null;
+  featuredLine?: FeaturedLine | null;
   /** @nullable */
   slideshowEmbedUrl?: string | null;
   familyTime?: FamilyTime | null;

@@ -870,6 +870,10 @@ components:
           anyOf:
             - { $ref: "#/components/schemas/Document" }
             - { type: "null" }
+        featuredLine:
+          anyOf:
+            - { $ref: "#/components/schemas/FeaturedLine" }
+            - { type: "null" }
         slideshowEmbedUrl: { type: ["string", "null"], format: uri }
         familyTime:
           anyOf:
@@ -896,6 +900,15 @@ components:
       required: [slideshowEmbedUrl]
       properties:
         slideshowEmbedUrl: { type: ["string", "null"], maxLength: 2048 }
+        featuredLineMode: { type: string, enum: [automatic, chosen, none] }
+        featuredDocumentId: { type: ["string", "null"], format: uuid }
+        featuredLabel: { type: string, maxLength: 100 }
+    FeaturedLine:
+      type: object
+      required: [label, document]
+      properties:
+        label: { type: string }
+        document: { $ref: "#/components/schemas/Document" }
     DuesSettings:
       type: object
       required: [seasonOpen, text]

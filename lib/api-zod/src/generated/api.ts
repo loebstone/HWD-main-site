@@ -41,27 +41,42 @@ export const CheckFamilyTimeResponse = zod.object({
 
 export const getHomeDisplayResponseSlideshowEmbedUrlMax = 2048;
 
+export const getHomeDisplayResponseFeaturedLabelMax = 100;
+
 
 
 export const GetHomeDisplayResponse = zod.object({
-  "slideshowEmbedUrl": zod.string().max(getHomeDisplayResponseSlideshowEmbedUrlMax).nullable()
+  "slideshowEmbedUrl": zod.string().max(getHomeDisplayResponseSlideshowEmbedUrlMax).nullable(),
+  "featuredLineMode": zod.enum(['automatic', 'chosen', 'none']).optional(),
+  "featuredDocumentId": zod.string().uuid().nullish(),
+  "featuredLabel": zod.string().max(getHomeDisplayResponseFeaturedLabelMax).optional()
 })
 
 
 export const updateHomeDisplayBodySlideshowEmbedUrlMax = 2048;
 
+export const updateHomeDisplayBodyFeaturedLabelMax = 100;
+
 
 
 export const UpdateHomeDisplayBody = zod.object({
-  "slideshowEmbedUrl": zod.string().max(updateHomeDisplayBodySlideshowEmbedUrlMax).nullable()
+  "slideshowEmbedUrl": zod.string().max(updateHomeDisplayBodySlideshowEmbedUrlMax).nullable(),
+  "featuredLineMode": zod.enum(['automatic', 'chosen', 'none']).optional(),
+  "featuredDocumentId": zod.string().uuid().nullish(),
+  "featuredLabel": zod.string().max(updateHomeDisplayBodyFeaturedLabelMax).optional()
 })
 
 export const updateHomeDisplayResponseSlideshowEmbedUrlMax = 2048;
 
+export const updateHomeDisplayResponseFeaturedLabelMax = 100;
+
 
 
 export const UpdateHomeDisplayResponse = zod.object({
-  "slideshowEmbedUrl": zod.string().max(updateHomeDisplayResponseSlideshowEmbedUrlMax).nullable()
+  "slideshowEmbedUrl": zod.string().max(updateHomeDisplayResponseSlideshowEmbedUrlMax).nullable(),
+  "featuredLineMode": zod.enum(['automatic', 'chosen', 'none']).optional(),
+  "featuredDocumentId": zod.string().uuid().nullish(),
+  "featuredLabel": zod.string().max(updateHomeDisplayResponseFeaturedLabelMax).optional()
 })
 
 
@@ -461,6 +476,26 @@ export const GetHomeResponse = zod.object({
   "uploadedAt": zod.coerce.date(),
   "retiredAt": zod.coerce.date().nullable(),
   "replaces": zod.string().nullable()
+}),zod.null()]).optional(),
+  "featuredLine": zod.union([zod.object({
+  "label": zod.string(),
+  "document": zod.object({
+  "id": zod.string(),
+  "groupId": zod.string().nullable(),
+  "title": zod.string(),
+  "section": zod.union([zod.literal('shareholders'),zod.literal('directors'),zod.literal('governing'),zod.literal('logging'),zod.literal('photo_archive'),zod.literal(null)]).nullable(),
+  "year": zod.number().int().nullable(),
+  "type": zod.enum(['pdf', 'link']),
+  "externalUrl": zod.string().nullable(),
+  "sortOrder": zod.number().int(),
+  "tags": zod.array(zod.string()),
+  "note": zod.string(),
+  "uploadedBy": zod.string(),
+  "uploadedByName": zod.string(),
+  "uploadedAt": zod.coerce.date(),
+  "retiredAt": zod.coerce.date().nullable(),
+  "replaces": zod.string().nullable()
+})
 }),zod.null()]).optional(),
   "slideshowEmbedUrl": zod.string().url().nullish(),
   "familyTime": zod.union([zod.object({

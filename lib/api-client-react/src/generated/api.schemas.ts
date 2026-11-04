@@ -426,6 +426,11 @@ export interface AppLink {
   url: string;
 }
 
+export interface FeaturedLine {
+  label: string;
+  document: Document;
+}
+
 export interface FamilySlot {
   slotNumber: number;
   segmentIndex: number;
@@ -458,6 +463,7 @@ export interface HomeSummary {
   reminders: Announcement[];
   apps: AppLink[];
   latestMinutes?: Document | null;
+  featuredLine?: FeaturedLine | null;
   /** @nullable */
   slideshowEmbedUrl?: string | null;
   familyTime?: FamilyTime | null;
@@ -490,12 +496,26 @@ export interface FamilyTimeCheck {
   slotCount: number;
 }
 
+export type HomeDisplayFeaturedLineMode = typeof HomeDisplayFeaturedLineMode[keyof typeof HomeDisplayFeaturedLineMode];
+
+
+export const HomeDisplayFeaturedLineMode = {
+  automatic: 'automatic',
+  chosen: 'chosen',
+  none: 'none',
+} as const;
+
 export interface HomeDisplay {
   /**
      * @maxLength 2048
      * @nullable
      */
   slideshowEmbedUrl: string | null;
+  featuredLineMode?: HomeDisplayFeaturedLineMode;
+  /** @nullable */
+  featuredDocumentId?: string | null;
+  /** @maxLength 100 */
+  featuredLabel?: string;
 }
 
 export interface DuesSettings {
