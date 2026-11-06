@@ -17,6 +17,7 @@ import { oldSiteImportRoutes } from "./routes/old-site-import";
 import { adminSettingsRoutes, appLinkRoutes, publicHomeNoticeRoutes } from "./routes/settings";
 import { csrf, requireSession } from "./middlewares/security";
 import { PROXY_TRUST } from "./lib/proxy-trust";
+import { canonicalOrigin } from "./middlewares/canonical-origin";
 import { BUILD_ID } from "./lib/build-identity";
 import { publicDocument } from "./lib/documents";
 import { getAppLinks, getHomeNotice, listAnnouncements } from "./lib/site-content";
@@ -37,6 +38,7 @@ export function createApp(services: Partial<Services> = {}): Express {
   // Bounded startup configuration, counted from the right; never trust all.
   app.set("trust proxy", PROXY_TRUST.hops);
   app.disable("x-powered-by");
+  app.use(canonicalOrigin());
   app.use(helmet({ contentSecurityPolicy: { directives: {
     defaultSrc: ["'none'"], frameAncestors: ["'self'"], baseUri: ["'none'"], formAction: ["'self'"],
   } }, crossOriginResourcePolicy: { policy: "same-origin" } }));

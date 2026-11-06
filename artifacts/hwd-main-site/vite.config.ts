@@ -5,6 +5,7 @@ import tailwindcss from '@tailwindcss/vite';
 import { defineConfig } from 'vite';
 
 import runtimeErrorOverlay from '@replit/vite-plugin-runtime-error-modal';
+import { canonicalOriginGateway } from '../api-server/src/middlewares/canonical-origin';
 
 const rawPort = process.env.PORT;
 
@@ -33,6 +34,15 @@ export default defineConfig({
   html: { cspNonce },
   base: basePath,
   plugins: [
+    {
+      name: 'hwd-canonical-origin',
+      configureServer(server) {
+        server.middlewares.use(canonicalOriginGateway());
+      },
+      configurePreviewServer(server) {
+        server.middlewares.use(canonicalOriginGateway());
+      },
+    },
     {
       name: 'hwd-security-headers',
       configureServer(server) {

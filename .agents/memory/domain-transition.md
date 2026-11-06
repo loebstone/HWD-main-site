@@ -1,10 +1,10 @@
 ---
-name: Domain transition
-description: Production origin before the family domain moves to the new site
+name: Canonical origin
+description: Domain transition history and the authoritative site origin
 ---
 
-Until DNS moves, the new production site is https://hwd-main-site.replit.app and hwdfarm.com points at the old site.
+Do not continue assuming hwdfarm.com necessarily serves the old site. On 2026-11-06 the user reported that www.hwdfarm.com and hwd-main-site.replit.app still serve this app and requested canonical redirects to APP_ORIGIN, using https://hwdfarm.com as the expected canonical origin in examples.
 
-**Why:** The user explicitly clarified this deployment transition.
+**Why:** The user's newer hosting information supersedes the earlier pre-DNS-transition assumption. Alias pages can load while exact-origin browser writes are refused.
 
-**How to apply:** Default links back to this site must derive from APP_ORIGIN, not assume hwdfarm.com already serves the new site. Explicit admin overrides remain allowed. Confirm the transition has happened before treating hwdfarm.com as the new production origin.
+**How to apply:** Derive site links and SSO origins from APP_ORIGIN, never a remembered hostname. Distinguish requested development changes from deployed production behavior; do not infer that alias redirects are live merely because they were implemented.
