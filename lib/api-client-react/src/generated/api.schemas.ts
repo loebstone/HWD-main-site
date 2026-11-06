@@ -674,6 +674,10 @@ ticket: string;
 to?: string;
 };
 
+export type VerifySignIn429 = {
+  error: string;
+};
+
 export type ListDocumentsParams = {
 section?: Section;
 includeRetired?: boolean;

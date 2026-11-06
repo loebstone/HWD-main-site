@@ -17,16 +17,17 @@ export const cookieOptions = () => ({
 });
 export function csrf(): RequestHandler {
   return (req, res, next) => {
-    if (["GET", "HEAD", "OPTIONS"].includes(req.method)) { next(); return; }
+    if (!["POST", "PUT", "PATCH", "DELETE"].includes(req.method) || req.path === "/healthz") { next(); return; }
     const origin = req.get("origin");
     try {
-      if ((origin && origin !== appOrigin()) || req.get("sec-fetch-site") === "cross-site") {
-        res.status(403).json({ error: "Cross-site request refused" }); return;
+      if (origin ? origin === appOrigin() && req.get("sec-fetch-site") !== "cross-site"
+        : req.get("sec-fetch-site") === "same-origin") {
+        next(); return;
       }
     } catch {
-      if (origin) { res.status(503).json({ error: "APP_ORIGIN is unset; feature refused" }); return; }
+      req.log.warn("APP_ORIGIN is unset; browser write refused");
     }
-    next();
+    res.status(403).json({ error: "Write requests require same-origin browser headers" });
   };
 }
 export function requireSession(s: Services): RequestHandler {
@@ -54,14 +55,22 @@ export const requireAdmin: RequestHandler = (req, res, next) => {
   if (req.siteIdentity?.role !== "admin") { res.status(403).json({ error: "Administrator access required" }); return; }
   next();
 };
-export async function withinLimit(s: Services, prefix: string, identifier: string, max: number, seconds: number): Promise<boolean> {
+export function rateIdentifierHash(identifier: string) {
   const secret = required("SESSION_SECRET");
-  const key = prefix + ":" + createHmac("sha256", secret).update(identifier).digest("hex");
+  return createHmac("sha256", secret).update(identifier).digest("hex");
+}
+export async function consumeLimit(s: Services, prefix: string, identifier: string, max: number, seconds: number) {
+  const key = prefix + ":" + rateIdentifierHash(identifier);
   const result = await s.db.execute(sql`
     INSERT INTO site_rate_limits (key,hits,expires_at) VALUES (${key},1,now()+${seconds}*interval '1 second')
     ON CONFLICT (key) DO UPDATE SET
       hits=CASE WHEN site_rate_limits.expires_at <= now() THEN 1 ELSE site_rate_limits.hits+1 END,
       expires_at=CASE WHEN site_rate_limits.expires_at <= now() THEN now()+${seconds}*interval '1 second' ELSE site_rate_limits.expires_at END
-    RETURNING hits`);
-  return Number(result.rows[0]?.hits) <= max;
+    RETURNING hits, greatest(1,ceil(extract(epoch FROM expires_at-now()))) AS retry_after`);
+  const count = Number(result.rows[0]?.hits);
+  if (!Number.isFinite(count)) throw new Error("Rate-limit counter unavailable");
+  return { allowed: count <= max, count, retryAfter: Number(result.rows[0]!.retry_after) };
+}
+export async function withinLimit(s: Services, prefix: string, identifier: string, max: number, seconds: number): Promise<boolean> {
+  return (await consumeLimit(s, prefix, identifier, max, seconds)).allowed;
 }

@@ -3,3 +3,4 @@
 - [Phone-first family use](phone-first-family-use.md) — Most family members use phones; prioritize readable sizing and navigation at 390 pixels.
 - [Domain transition](domain-transition.md) — Until DNS moves, hwdfarm.com is the old site; the new production site uses its Replit origin.
 - [Role switch boundaries](role-switch-boundaries.md) — Cache clearing alone can leave mounted observers showing old privileged data; discard the private UI on role changes.
+- [Browser fixture forwarding](browser-fixture-forwarding.md) — Preserve redirects and cookies at the frontend origin; APIResponse and browser Response use different header methods.

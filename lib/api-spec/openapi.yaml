@@ -215,7 +215,14 @@ paths:
             schema: { $ref: "#/components/schemas/EmailInput" }
       responses:
         "200":
-          description: Always neutral
+          description: Neutral whether allowed or refused
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Message" }
+        "429":
+          description: Address or email quota exceeded; Retry-After in seconds; identical neutral body
+          headers:
+            Retry-After: { schema: { type: integer, minimum: 1 }, description: Seconds until the limiting window expires }
           content:
             application/json:
               schema: { $ref: "#/components/schemas/Message" }
@@ -225,6 +232,13 @@ paths:
       responses:
         "200":
           description: Rate-limited continue-page check; never consumes a token
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Message" }
+        "429":
+          description: Verification quota exceeded; Retry-After in seconds; identical gate message
+          headers:
+            Retry-After: { schema: { type: integer, minimum: 1 } }
           content:
             application/json:
               schema: { $ref: "#/components/schemas/Message" }
@@ -241,6 +255,17 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/Identity" }
+        "429":
+          description: Verification quota exceeded; Retry-After in seconds; ordinary verification refusal envelope, no identity
+          headers:
+            Retry-After: { schema: { type: integer, minimum: 1 } }
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [error]
+                properties:
+                  error: { type: string }
   /auth/session:
     get:
       operationId: getSession

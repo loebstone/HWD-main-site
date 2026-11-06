@@ -6,10 +6,11 @@ import { Readable } from "node:stream";
 import pg from "pg";
 import { drizzle } from "drizzle-orm/node-postgres";
 import { eq } from "drizzle-orm";
-import { pool, sessions, documents, documentGroups, siteSettings, announcements } from "@workspace/db";
+import { pool, sessions, grants, documents, documentGroups, siteSettings, announcements } from "@workspace/db";
 import * as schema from "@workspace/db/schema";
 import { createApp } from "../src/app";
-import { hashToken, newToken } from "../src/lib/auth";
+import { hashToken, newToken, Refusal } from "../src/lib/auth";
+import { sendSignInLink } from "../src/lib/email";
 import { installDatabaseProtections } from "../src/install-security";
 import { DEFAULT_GROUPS, migrateDocumentGroups } from "../src/migrate-document-groups";
 import type { Services } from "../src/lib/services";
@@ -71,8 +72,22 @@ const day = now.toISOString().slice(0, 10);
 await fixtureDb.insert(announcements).values({ title: "A note for the family", body: "Synthetic reminder for the Home page check.",
   date: day, hideAfter: new Date(now.getTime() + 60 * 86400000).toISOString().slice(0, 10), placement: "both",
   createdBy: "synthetic-fixture", createdByName: "Synthetic Fixture" });
+await fixtureDb.insert(grants).values({ personId: "synthetic-group-browser-admin", displayName: "Synthetic Admin",
+  role: "admin", grantedBy: "synthetic-fixture" });
+let ssoRedeemed = false;
 const services: Partial<Services> = {
   db: fixtureDb, roster: async email => ({ allowed: true, personId: `synthetic-group-browser-${email.split("@")[0]}`, displayName: "Synthetic Person", goes_by: null }),
+  email: async (email, link) => {
+    await sendSignInLink(email, link); // Development console transport only.
+    await writeFile("/tmp/hwd-security-browser-mail.json", JSON.stringify({ link }));
+  },
+  redeemTicket: async ticket => {
+    if (ticket !== "synthetic-browser-admin-ticket" || ssoRedeemed) throw new Refusal("Synthetic ticket refused");
+    ssoRedeemed = true;
+    return { personId: "synthetic-group-browser-admin", displayName: "Synthetic Admin", goes_by: "Morgan",
+      email: "admin@example.invalid", rosterAdmin: true, role: "admin", authenticated_at: new Date().toISOString(),
+      apps: ["site", "scheduler", "roster", "forecast", "captable"] };
+  },
   schedulerFetch: async input => {
     const year = Number(new URL(String(input)).searchParams.get("year"));
     return new Response(JSON.stringify({ year,

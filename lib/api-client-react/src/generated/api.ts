@@ -65,7 +65,8 @@ import type {
   RedeemSsoParams,
   SuiteMenu,
   SuiteMenuInput,
-  TokenInput
+  TokenInput,
+  VerifySignIn429
 } from './api.schemas';
 
 import { customFetch } from '../custom-fetch';
@@ -1783,7 +1784,7 @@ return customFetch<Message>(getRequestSignInUrl(),
 
 export const getRequestSignInMutationKey = () => ['requestSignIn'] as const;
 
-export const getRequestSignInMutationOptions = <TError = ErrorType<unknown>,
+export const getRequestSignInMutationOptions = <TError = ErrorType<Message>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof requestSignIn>>, TError,RequestSignInMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
 ): UseMutationOptions<Awaited<ReturnType<typeof requestSignIn>>, TError,RequestSignInMutationVariables, TContext> => {
 
@@ -1812,10 +1813,10 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
     export type RequestSignInMutationResult = NonNullable<Awaited<ReturnType<typeof requestSignIn>>>
     export type RequestSignInMutationBody = BodyType<EmailInput>
-    export type RequestSignInMutationError = ErrorType<unknown>
+    export type RequestSignInMutationError = ErrorType<Message>
     export type RequestSignInMutationVariables = {data: BodyType<EmailInput>}
 
-    export const useRequestSignIn = <TError = ErrorType<unknown>,
+    export const useRequestSignIn = <TError = ErrorType<Message>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof requestSignIn>>, TError,RequestSignInMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
  , queryClient?: QueryClient): UseMutationResult<
         Awaited<ReturnType<typeof requestSignIn>>,
@@ -1856,7 +1857,7 @@ export const getGetVerificationGateQueryKey = () => {
     }
 
 
-export const getGetVerificationGateQueryOptions = <TData = Awaited<ReturnType<typeof getVerificationGate>>, TError = ErrorType<unknown>>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getVerificationGate>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+export const getGetVerificationGateQueryOptions = <TData = Awaited<ReturnType<typeof getVerificationGate>>, TError = ErrorType<Message>>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getVerificationGate>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
 ) => {
 
 const {query: queryOptions, request: requestOptions} = options ?? {};
@@ -1875,10 +1876,10 @@ const {query: queryOptions, request: requestOptions} = options ?? {};
 }
 
 export type GetVerificationGateQueryResult = NonNullable<Awaited<ReturnType<typeof getVerificationGate>>>
-export type GetVerificationGateQueryError = ErrorType<unknown>
+export type GetVerificationGateQueryError = ErrorType<Message>
 
 
-export function useGetVerificationGate<TData = Awaited<ReturnType<typeof getVerificationGate>>, TError = ErrorType<unknown>>(
+export function useGetVerificationGate<TData = Awaited<ReturnType<typeof getVerificationGate>>, TError = ErrorType<Message>>(
   options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getVerificationGate>>, TError, TData>> & Pick<
         DefinedInitialDataOptions<
           Awaited<ReturnType<typeof getVerificationGate>>,
@@ -1888,7 +1889,7 @@ export function useGetVerificationGate<TData = Awaited<ReturnType<typeof getVeri
       >, request?: SecondParameter<typeof customFetch>}
  , queryClient?: QueryClient
   ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useGetVerificationGate<TData = Awaited<ReturnType<typeof getVerificationGate>>, TError = ErrorType<unknown>>(
+export function useGetVerificationGate<TData = Awaited<ReturnType<typeof getVerificationGate>>, TError = ErrorType<Message>>(
   options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getVerificationGate>>, TError, TData>> & Pick<
         UndefinedInitialDataOptions<
           Awaited<ReturnType<typeof getVerificationGate>>,
@@ -1898,12 +1899,12 @@ export function useGetVerificationGate<TData = Awaited<ReturnType<typeof getVeri
       >, request?: SecondParameter<typeof customFetch>}
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useGetVerificationGate<TData = Awaited<ReturnType<typeof getVerificationGate>>, TError = ErrorType<unknown>>(
+export function useGetVerificationGate<TData = Awaited<ReturnType<typeof getVerificationGate>>, TError = ErrorType<Message>>(
   options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getVerificationGate>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 
-export function useGetVerificationGate<TData = Awaited<ReturnType<typeof getVerificationGate>>, TError = ErrorType<unknown>>(
+export function useGetVerificationGate<TData = Awaited<ReturnType<typeof getVerificationGate>>, TError = ErrorType<Message>>(
   options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getVerificationGate>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
  , queryClient?: QueryClient
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
@@ -1960,7 +1961,7 @@ return customFetch<Identity>(getVerifySignInUrl(),
 
 export const getVerifySignInMutationKey = () => ['verifySignIn'] as const;
 
-export const getVerifySignInMutationOptions = <TError = ErrorType<unknown>,
+export const getVerifySignInMutationOptions = <TError = ErrorType<VerifySignIn429>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof verifySignIn>>, TError,VerifySignInMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
 ): UseMutationOptions<Awaited<ReturnType<typeof verifySignIn>>, TError,VerifySignInMutationVariables, TContext> => {
 
@@ -1989,10 +1990,10 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
     export type VerifySignInMutationResult = NonNullable<Awaited<ReturnType<typeof verifySignIn>>>
     export type VerifySignInMutationBody = BodyType<TokenInput>
-    export type VerifySignInMutationError = ErrorType<unknown>
+    export type VerifySignInMutationError = ErrorType<VerifySignIn429>
     export type VerifySignInMutationVariables = {data: BodyType<TokenInput>}
 
-    export const useVerifySignIn = <TError = ErrorType<unknown>,
+    export const useVerifySignIn = <TError = ErrorType<VerifySignIn429>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof verifySignIn>>, TError,VerifySignInMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
  , queryClient?: QueryClient): UseMutationResult<
         Awaited<ReturnType<typeof verifySignIn>>,

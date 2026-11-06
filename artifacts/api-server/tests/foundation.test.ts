@@ -5,7 +5,7 @@ import { createHmac, randomUUID } from "node:crypto";
 import { Readable } from "node:stream";
 import { mkdir } from "node:fs/promises";
 import pg from "pg";
-import request from "supertest";
+import request from "./helpers/browser-request";
 import { drizzle } from "drizzle-orm/node-postgres";
 import { and, eq, inArray, sql } from "drizzle-orm";
 import { pool, loginTokens, sessions, grants, documents, auditLog, announcements } from "@workspace/db";
@@ -26,6 +26,7 @@ import { returnPath, rosterEntry } from "../src/lib/sso";
 import type { Services } from "../src/lib/services";
 import { DEFAULT_GROUPS, migrateDocumentGroups } from "../src/migrate-document-groups";
 import { documentGroups, dataMigrations } from "@workspace/db";
+import { authAttempt } from "../src/lib/auth-rate-limit";
 
 test("proxy startup setting accepts only integer depths 0–8 with explained defaults", () => {
   for (let hops = 0; hops <= 8; hops++) {
@@ -160,6 +161,11 @@ test("HWD foundation: isolated development security suite", async (t) => {
   };
   let adminCookie = "", memberCookie = "", editorCookie = "", documentId = "", replacementId = "";
   try {
+    // Independent journeys get independent windows, without deleting counters.
+    // Every rate-limit assertion still shares one window inside its own test.
+    t.beforeEach(async () => {
+      await testDb.execute(sql`UPDATE site_rate_limits SET expires_at=now()-interval '1 second'`);
+    });
     await t.test("document-group startup migration preserves live/retired documents, assigns every section and is idempotent", async () => {
       assert.equal(migrationEvidence.total, 10);
       assert.equal(migrationEvidence.unassigned, 0);
@@ -773,7 +779,7 @@ test("HWD foundation: isolated development security suite", async (t) => {
           const chain = (spoof: string, address = visitor) => [spoof, address, ...proxies].join(", ");
           for (let n = 0; n < 12; n++) {
             await request(app).get("/api/auth/verify")
-              .set("X-Forwarded-For", chain(`198.51.100.${n + 1}`)).expect(n < 10 ? 200 : 429);
+              .set("X-Forwarded-For", chain(`198.51.100.${n + 1}`)).expect(n < 8 ? 200 : 429);
           }
           for (let n = 0; n < 12; n++) {
             await request(app).get("/api/auth/verify")
@@ -810,16 +816,113 @@ test("HWD foundation: isolated development security suite", async (t) => {
     });
     await t.test("rate limits use visitor IP, not cookie; email limit shared across IPs; verify limit", async () => {
       const before = captured.length;
-      for (let n = 0; n < 4; n++) await request(app).post("/api/auth/link").set("X-Forwarded-For", ip())
-        .send({ email: "limited@example.invalid" }).expect(200);
+      const legacyEmailKey = "link-email:" + createHmac("sha256", process.env.SESSION_SECRET!)
+        .update("limited@example.invalid").digest("hex");
+      await testDb.execute(sql`INSERT INTO site_rate_limits(key,hits,expires_at)
+        VALUES(${legacyEmailKey},999,now()+interval '1 hour')`);
+      const rosterBefore = rosterCalls;
+      for (let n = 0; n < 4; n++) {
+        const response = await request(app).post("/api/auth/link").set("X-Forwarded-For", ip())
+          .send({ email: n === 3 ? " LIMITED@example.invalid " : "limited@example.invalid" }).expect(n < 3 ? 200 : 429);
+        assert.deepEqual(response.body, { message: neutralMessage });
+        if (n === 3) assert(Number(response.headers["retry-after"]) > 0 && Number(response.headers["retry-after"]) <= 900);
+      }
       assert.equal(captured.length - before, 3);
+      assert.equal(rosterCalls - rosterBefore, 3, "Email-throttled request must not call Roster");
       const repeated = "203.0.113.99"; const initial = captured.length;
-      for (let n = 0; n < 6; n++) await request(app).post("/api/auth/link").set("X-Forwarded-For", repeated)
-        .send({ email: `ip-limit-${n}@example.invalid` }).expect(200);
-      assert.equal(captured.length - initial, 5);
-      for (let n = 0; n < 10; n++) await request(app).post("/api/auth/verify").set("X-Forwarded-For", repeated)
+      for (let n = 0; n < 9; n++) {
+        const response = await request(app).post("/api/auth/link").set("X-Forwarded-For", repeated)
+          .send({ email: `ip-limit-${n}@example.invalid` }).expect(n < 8 ? 200 : 429);
+        assert.deepEqual(response.body, { message: neutralMessage });
+        if (n === 8) assert(Number(response.headers["retry-after"]) > 0);
+      }
+      assert.equal(captured.length - initial, 8);
+      const beforeSecond = rosterCalls;
+      await request(app).post("/api/auth/link").set("X-Forwarded-For", "203.0.113.100")
+        .send({ email: "another-visitor@example.invalid" }).expect(200);
+      assert.equal(rosterCalls, beforeSecond + 1);
+      for (let n = 0; n < 8; n++) await request(app).post("/api/auth/verify").set("X-Forwarded-For", repeated)
         .send({ token: "0".repeat(64) }).expect(401);
-      await request(app).post("/api/auth/verify").set("X-Forwarded-For", repeated).send({ token: "0".repeat(64) }).expect(429);
+      const blocked = await request(app).post("/api/auth/verify").set("X-Forwarded-For", repeated).send({ token: "0".repeat(64) }).expect(429);
+      assert(Number(blocked.headers["retry-after"]) > 0);
+      await request(app).post("/api/auth/verify").set("X-Forwarded-For", "203.0.113.100").send({ token: "0".repeat(64) }).expect(401);
+    });
+    await t.test("verification email quota is derived from stored tokens, shared across visitors, and does not consume a throttled token", async () => {
+      const tokens: string[] = [];
+      for (let n = 0; n < 4; n++) {
+        const raw = newToken(); tokens.push(raw);
+        await testDb.insert(loginTokens).values({ hash: hashToken(raw), personId: "synthetic-admin",
+          displayName: "Synthetic Test Person", goesBy: "Test", email: "admin@example.invalid",
+          expiresAt: new Date(time.getTime() + 900_000) });
+      }
+      for (let n = 0; n < 3; n++) await request(app).post("/api/auth/verify").set("X-Forwarded-For", ip()).send({ token: tokens[n] }).expect(200);
+      const before = rosterCalls;
+      const blocked = await request(app).post("/api/auth/verify").set("X-Forwarded-For", ip())
+        .send({ token: tokens[3], email: "spoofed@example.invalid" }).expect(429);
+      assert(Number(blocked.headers["retry-after"]) > 0);
+      assert.equal(rosterCalls, before);
+      const [token] = await testDb.select().from(loginTokens).where(eq(loginTokens.hash, hashToken(tokens[3]!)));
+      assert.equal(token.usedAt, null);
+      await testDb.execute(sql`UPDATE site_rate_limits SET expires_at=now()-interval '1 second'`);
+      await request(app).post("/api/auth/verify").set("X-Forwarded-For", ip()).send({ token: tokens[3] }).expect(200);
+    });
+    await t.test("concurrent unknown-email requests allow eight Roster checks, block the rest and leave health unaffected", async () => {
+      let checks = 0;
+      const concurrentApp = createApp({ ...services, roster: async () => { checks++; return { allowed: false }; } });
+      const responses = await Promise.all(Array.from({ length: 16 }, (_, n) =>
+        request(concurrentApp).post("/api/auth/link").set("X-Forwarded-For", "203.0.113.229")
+          .send({ email: `concurrent-${n}@example.invalid` })));
+      assert.equal(responses.filter(r => r.status === 200).length, 8);
+      assert.equal(responses.filter(r => r.status === 429).length, 8);
+      assert.equal(checks, 8);
+      assert(responses.every(r => JSON.stringify(r.body) === JSON.stringify({ message: neutralMessage })));
+      assert(responses.filter(r => r.status === 429).every(r => Number(r.headers["retry-after"]) > 0));
+      const [bucketCount] = (await testDb.execute(sql`SELECT count(*)::integer AS count FROM site_rate_limits
+        WHERE key LIKE 'link-email-15m:%' AND expires_at > now()`)).rows;
+      assert.equal(bucketCount!.count, 8, "Blocked addresses must not create arbitrary email buckets");
+      await request(concurrentApp).get("/api/healthz").expect(200);
+    });
+    await t.test("throttle emits exactly one structured line with hashed address, route and count", async () => {
+      const entries: Record<string, unknown>[] = [];
+      const address = "203.0.113.231";
+      const req = { ip: address, log: { info: (value: Record<string, unknown>) => entries.push(value) } } as Parameters<typeof authAttempt>[1];
+      const headers: Record<string, string> = {};
+      let status = 200;
+      const res = { setHeader: (key: string, value: string) => { headers[key] = value; }, status: (value: number) => { status = value; } } as unknown as Parameters<typeof authAttempt>[2];
+      for (let n = 0; n < 9; n++) assert.equal(await authAttempt(services, req, res, "link"), n < 8);
+      assert.equal(status, 429);
+      assert.equal(entries.length, 1);
+      assert.equal(entries[0]!.route, "/api/auth/link");
+      assert.equal(entries[0]!.count, 9);
+      assert.equal(entries[0]!.addressHash, createHmac("sha256", process.env.SESSION_SECRET!).update(address).digest("hex"));
+      assert(!JSON.stringify(entries).includes(address));
+      assert(Number(headers["Retry-After"]) > 0);
+    });
+    await t.test("all API browser writes require own Origin or absent-Origin same-origin Fetch Metadata", async () => {
+      const error = { error: "Write requests require same-origin browser headers" };
+      for (const method of ["post", "put", "patch", "delete"] as const) {
+        for (const path of ["/api/auth/link", "/api/documents/upload", "/api/announcements", "/api/contact", "/api/suite/menu", "/api/nonexistent"]) {
+          await request(app)[method](path).unset("Origin").send({}).expect(403, error);
+          await request(app)[method](path).set("Origin", "https://evil.example").send({}).expect(403, error);
+          await request(app)[method](path).set("Origin", "null").send({}).expect(403, error);
+        }
+      }
+      await request(app).post("/api/auth/link").send({ email: "own-origin@example.invalid" }).expect(200);
+      await request(app).post("/api/auth/link").unset("Origin").set("Sec-Fetch-Site", "same-origin")
+        .send({ email: "fetch-metadata@example.invalid" }).expect(200);
+      await request(app).post("/api/auth/link").set("Origin", "https://evil.example").set("Sec-Fetch-Site", "same-origin").send({}).expect(403);
+      await request(app).post("/api/auth/link").set("Origin", "https://evil.example")
+        .set("Content-Type", "application/json").send("{").expect(403, error);
+      await request(app).post("/api/auth/link").unset("Origin").set("Sec-Fetch-Site", "same-site").send({}).expect(403);
+      await request(app).get("/api/healthz").expect(200);
+      await request(app).get("/auth/sso?ticket=invalid&to=/").expect(401);
+    });
+    await t.test("malformed JSON is a short 400 across anonymous, private, admin and unknown API routes", async () => {
+      for (const path of ["/api/auth/link", "/api/auth/verify", "/api/documents", "/api/announcements", "/api/contact", "/api/admin/home-display", "/api/suite/menu", "/api/healthz", "/api/nonexistent"]) {
+        const res = await request(app).post(path).set("Content-Type", "application/json").send("{").expect(400);
+        assert.deepEqual(res.body, { error: "Invalid request. Check the supplied fields." });
+        assert.doesNotMatch(JSON.stringify(res.body), /stack|workspace|node_modules|SyntaxError/);
+      }
     });
     await t.test("cross-site requests, malformed JSON and bad IDs reveal no paths or traces", async () => {
       await request(app).post("/api/auth/link").set("Origin", "https://attacker.invalid")

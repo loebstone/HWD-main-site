@@ -46,11 +46,13 @@ export function createApp(services: Partial<Services> = {}): Express {
   } }));
   app.use((_req, res, next) => { res.setHeader("Cache-Control", "no-store"); next(); });
   app.use(cookieParser());
-  // Public, identity-free navigation. Method/CORS gate precedes body parsing,
-  // CSRF and sessions; it never sets a session cookie.
-  app.use("/api/suite/menu", publicSuiteMenuRoutes(s));
+  // Browser writes must pass the origin gate before routing or body parsing.
+  // No inbound server-to-server write routes exist; only health is exempt.
+  app.use("/api", csrf());
   app.use(express.json({ limit: "64kb" }));
-  app.use(csrf());
+  // Public, identity-free navigation; guarded writes and JSON parsing precede
+  // its method/CORS gate, but it never loads or sets a session.
+  app.use("/api/suite/menu", publicSuiteMenuRoutes(s));
   app.get("/api/healthz", (_req, res) => { res.json({ status: "ok", build: BUILD_ID }); });
   app.use("/auth", ssoRoutes(s));
   app.use("/api/auth", ssoEntryRoutes());

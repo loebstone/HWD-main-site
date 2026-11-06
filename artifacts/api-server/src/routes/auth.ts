@@ -6,7 +6,8 @@ import { z } from "zod";
 import { appOrigin, neutralMessage } from "../lib/config";
 import { issueLink, normaliseEmail, verify, Refusal, identity, underlyingIdentity } from "../lib/auth";
 import { audit } from "../lib/audit";
-import { cookieOptions, visitorAddress, withinLimit, requireSession } from "../middlewares/security";
+import { cookieOptions, visitorAddress, requireSession } from "../middlewares/security";
+import { authAttempt, verificationEmail } from "../lib/auth-rate-limit";
 import type { Services } from "../lib/services";
 export function authRoutes(s: Services) {
   const router = Router();
@@ -14,26 +15,18 @@ export function authRoutes(s: Services) {
     req.log.info({ forwardedFor: req.get("x-forwarded-for") ?? null,
       socketAddress: req.socket.remoteAddress ?? null, resolvedIp: req.ip ?? null,
       trustedProxyHops: req.app.get("trust proxy") }, "Verify proxy diagnostic");
-    if (!await withinLimit(s, "verify-ip", visitorAddress(req), 10, 900)) {
-      res.status(429).json({ error: "Too many attempts. Please wait 15 minutes." }); return;
-    }
+    const email = await verificationEmail(s, req.query.token);
+    await authAttempt(s, req, res, "verify", email);
     res.json({ message: "Choose Continue to sign in" });
   });
   router.post("/link", async (req, res): Promise<void> => {
     const neutral = () => res.json({ message: neutralMessage });
     try {
       const parsed = RequestSignInBody.safeParse(req.body);
-      if (!parsed.success) { neutral(); return; }
-      const email = normaliseEmail(parsed.data.email);
-      if (!z.string().email().safeParse(email).success) { neutral(); return; }
-      const [ipOK, emailOK] = await Promise.all([
-        withinLimit(s, "link-ip", visitorAddress(req), 5, 900),
-        withinLimit(s, "link-email", email, 3, 3600),
-      ]);
-      // Neutral for allowed, denied, unreachable, malformed and throttled.
-      if (ipOK && emailOK) await issueLink(s, email, appOrigin());
-      else req.log.info({ visitorAddress: visitorAddress(req), ipThrottled: !ipOK, emailThrottled: !emailOK },
-        "Sign-in link request throttled; neutral response returned");
+      const value = parsed.success ? normaliseEmail(parsed.data.email) : undefined;
+      const email = value && z.string().email().safeParse(value).success ? value : undefined;
+      if (!await authAttempt(s, req, res, "link", email)) { neutral(); return; }
+      if (email) await issueLink(s, email, appOrigin());
     } catch (error) {
       const message = error instanceof Error ? error.message : "Sign-in refused";
       req.log.warn(message.includes("is unset") ? message : "Roster or email unavailable; sign-in refused");
@@ -42,8 +35,9 @@ export function authRoutes(s: Services) {
   });
   router.post("/verify", async (req, res): Promise<void> => {
     try {
-      if (!await withinLimit(s, "verify-ip", visitorAddress(req), 10, 900)) {
-        res.status(429).json({ error: "Too many attempts. Please wait 15 minutes." }); return;
+      const email = await verificationEmail(s, req.body?.token);
+      if (!await authAttempt(s, req, res, "verify", email)) {
+        res.json({ error: "This sign-in link is invalid or expired. Request a new link." }); return;
       }
       const parsed = VerifySignInBody.safeParse(req.body);
       if (!parsed.success) { res.status(400).json({ error: "Invalid sign-in link. Request a new link." }); return; }
